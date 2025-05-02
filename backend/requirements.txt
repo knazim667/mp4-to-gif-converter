@@ -1,0 +1,14 @@
+     flask==2.3.3
+     boto3==1.28.57
+     moviepy==1.0.3
+     opencv-python==4.8.1.78
+     flask-jwt-extended==4.7.1
+     flask-limiter==3.5.0
+     celery==5.3.4
+     redis==5.0.1
+     python-dotenv==1.0.0
+     pytest==7.4.2
+     gunicorn==21.2.0
+     flask-cors==5.0.1
+     numpy==1.26.4
+     
