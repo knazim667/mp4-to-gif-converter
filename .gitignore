@@ -1,0 +1,19 @@
+
+*.pyc
+.env
+venv/
+static/
+*.log
+
+# Node.js
+node_modules/
+frontend/node_modules/.cache/
+build/
+.env
+
+# AWS
+*.pem
+# Temporary files
+temp_*
+*.gif
+*.mp4
