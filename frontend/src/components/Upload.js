@@ -17,6 +17,7 @@ function Upload() {
   const [width, setWidth] = useState(320);
   const [trim, setTrim] = useState({ start: 0, end: null });
   const [videoDuration, setVideoDuration] = useState(0);
+  const [scenePoints, setScenePoints] = useState([]); // New state for scene points
   const fileInputRef = useRef(null);
 
   const borderColor = useColorModeValue('gray.300', 'gray.600');
@@ -32,6 +33,7 @@ function Upload() {
       setUploadedFilename('');
       setGifUrl('');
       setTrim({ start: 0, end: null });
+      setScenePoints([]); // Reset scene points
       const video = document.createElement('video');
       video.src = URL.createObjectURL(selectedFile);
       video.onloadedmetadata = () => {
@@ -65,6 +67,7 @@ function Upload() {
       setUploadedFilename('');
       setGifUrl('');
       setTrim({ start: 0, end: null });
+      setScenePoints([]); // Reset scene points
       const video = document.createElement('video');
       video.src = URL.createObjectURL(droppedFile);
       video.onloadedmetadata = () => {
@@ -78,7 +81,7 @@ function Upload() {
     }
   };
 
-  // Handle upload
+  // Handle upload and analyze
   const handleUpload = async () => {
     if (!file) {
       setMessage('Please select or drop a file first.');
@@ -90,15 +93,24 @@ function Upload() {
 
     try {
       setMessage('Uploading...');
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/upload`, formData, {
+      const uploadResponse = await axios.post(`${process.env.REACT_APP_API_URL}/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setMessage(`Success: Uploaded ${response.data.filename}`);
-      setUploadedFilename(response.data.filename);
+      setMessage(`Success: Uploaded ${uploadResponse.data.filename}`);
+      setUploadedFilename(uploadResponse.data.filename);
+
+      // Analyze video for scene changes
+      setMessage('Analyzing video...');
+      const analyzeResponse = await axios.post(`${process.env.REACT_APP_API_URL}/analyze`, {
+        filename: uploadResponse.data.filename,
+      });
+      setScenePoints(analyzeResponse.data.scenes); // Set scene points
+      setMessage(`Success: Uploaded and analyzed ${uploadResponse.data.filename}`);
+
       setFile(null);
       fileInputRef.current.value = '';
     } catch (error) {
-      setMessage(`Upload failed: ${error.response?.data?.message || 'Server error'}`);
+      setMessage(`Upload/Analysis failed: ${error.response?.data?.message || 'Server error'}`);
     }
   };
 
@@ -201,7 +213,7 @@ function Upload() {
           <Heading as="h3" size="md" color="gray.800" mb={4}>
             GIF Settings
           </Heading>
-          <TrimSlider duration={videoDuration} onTrimChange={handleTrimChange} />
+          <TrimSlider duration={videoDuration} scenes={scenePoints} onTrimChange={handleTrimChange} />
           <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4} mt={4}>
             <FormControl>
               <FormLabel fontSize="sm" color="gray.600">

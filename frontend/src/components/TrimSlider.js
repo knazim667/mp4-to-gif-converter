@@ -1,21 +1,40 @@
-import React, { useState } from 'react';
-import { Box, Heading, FormControl, FormLabel, Slider, SliderTrack, SliderFilledTrack, SliderThumb, Text } from '@chakra-ui/react';
+import React, { useState, useEffect } from 'react';
+import { Box, Heading, FormControl, FormLabel, Slider, SliderTrack, SliderFilledTrack, SliderThumb, SliderMark, Text } from '@chakra-ui/react';
 
-function TrimSlider({ duration, onTrimChange }) {
+function TrimSlider({ duration, scenes = [], onTrimChange }) {
   const [start, setStart] = useState(0);
   const [end, setEnd] = useState(duration);
 
+  useEffect(() => {
+    if (duration) {
+      setEnd(duration);
+      onTrimChange({ start, end: duration });
+    }
+  }, [duration]);
+
   const handleStartChange = (value) => {
-    if (value < end) {
-      setStart(value);
-      onTrimChange({ start: value, end });
+    // Find the nearest scene point
+    const nearestScene = scenes.reduce((prev, curr) => 
+      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev, value
+    );
+    const snappedValue = Math.abs(nearestScene - value) < 0.5 ? nearestScene : value;
+    
+    if (snappedValue < end) {
+      setStart(snappedValue);
+      onTrimChange({ start: snappedValue, end });
     }
   };
 
   const handleEndChange = (value) => {
-    if (value > start) {
-      setEnd(value);
-      onTrimChange({ start, end: value });
+    // Find the nearest scene point
+    const nearestScene = scenes.reduce((prev, curr) => 
+      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev, value
+    );
+    const snappedValue = Math.abs(nearestScene - value) < 0.5 ? nearestScene : value;
+    
+    if (snappedValue > start) {
+      setEnd(snappedValue);
+      onTrimChange({ start, end: snappedValue });
     }
   };
 
@@ -40,6 +59,18 @@ function TrimSlider({ duration, onTrimChange }) {
             <SliderTrack bg="gray.100">
               <SliderFilledTrack bg="blue.500" />
             </SliderTrack>
+            {scenes.map((scene) => (
+              <SliderMark
+                key={scene}
+                value={scene}
+                mt={2}
+                ml={-2}
+                color="gray.600"
+                fontSize="sm"
+              >
+                |
+              </SliderMark>
+            ))}
             <SliderThumb boxSize={6} />
           </Slider>
           <Text fontSize="sm" color="gray.600">
@@ -61,6 +92,18 @@ function TrimSlider({ duration, onTrimChange }) {
             <SliderTrack bg="gray.100">
               <SliderFilledTrack bg="blue.500" />
             </SliderTrack>
+            {scenes.map((scene) => (
+              <SliderMark
+                key={scene}
+                value={scene}
+                mt={2}
+                ml={-2}
+                color="gray.600"
+                fontSize="sm"
+              >
+                |
+              </SliderMark>
+            ))}
             <SliderThumb boxSize={6} />
           </Slider>
           <Text fontSize="sm" color="gray.600">
