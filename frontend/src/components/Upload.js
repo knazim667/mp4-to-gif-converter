@@ -22,8 +22,12 @@ function Upload() {
   const [fontSize, setFontSize] = useState(20);
   const [textPosition, setTextPosition] = useState('center');
   const [videoSrc, setVideoSrc] = useState(null);
-  const [textStyle, setTextStyle] = useState('default');
-  const fileInputRef = useRef(null);
+  // const [textStyle, setTextStyle] = useState('default'); // Removed, using separate color/font
+  const [fuzz, setFuzz] = useState(5);
+    const [textColor, setTextColor] = useState('white'); // Added textColor state
+    const [textBgColor, setTextBgColor] = useState(''); // Added textBgColor state, '' means None
+    const [fontStyle, setFontStyle] = useState('Arial'); // Added fontStyle state
+    const fileInputRef = useRef(null); // <<< Add this line back
 
   const borderColor = useColorModeValue('gray.300', 'gray.600');
   const dragBg = useColorModeValue('blue.50', 'blue.900');
@@ -150,7 +154,11 @@ function Upload() {
         text: textOverlay,
         font_size: fontSize,
         text_position: textPosition,
-        text_style: textStyle
+          // Use the color and font style from the radio buttons
+          text_color: textColor, // Use state variable
+          text_bg_color: textBgColor || null, // Send null if '' (None) is selected
+          font_style: fontStyle,
+        // fuzz, // Fuzz parameter removed from backend
       });
       setMessage(`Success: Converted to ${response.data.filename}`);
       setGifUrl(response.data.url);
@@ -163,11 +171,35 @@ function Upload() {
     setTrim({ start, end });
   };
 
-  const textStyleOptions = [
-    { value: 'default', label: 'White on Black', color: 'white', bg_color: 'black' },
-    { value: 'yellow', label: 'Yellow on Blue', color: 'yellow', bg_color: 'blue' },
-    { value: 'red', label: 'Red on Gray', color: 'red', bg_color: 'gray' },
+  const textColorOptions = [
+      "white", "black", "red", "blue", "green", "yellow", "orange", "purple"
   ];
+
+  // Font names must be available on the backend server
+  const fontStyleOptions = [
+      "Arial", "Times New Roman", "Courier New", "Verdana"
+  ];
+
+  // Options for Background Color, including None
+  const bgColorOptions = [
+      { value: '', label: 'None (Transparent)' }, // Empty string represents None
+      { value: 'black', label: 'Black' },
+      { value: 'gray', label: 'Gray' },
+      { value: 'white', label: 'White' },
+      { value: '#80808080', label: 'Gray (Semi-Transparent)' } // Example with alpha
+  ];
+
+  // Changed 'e' to 'value' as RadioGroup onChange provides the value directly
+  /* // Removed textStyle RadioGroup handler
+  const handleTextStyleChange = (value) => {
+      const selectedStyle = textStyleOptions.find(style => style.value === value);
+      if (selectedStyle) { // Check if style was found
+        setTextColor(selectedStyle.color);
+        setFontStyle(selectedStyle.font);
+        setTextStyle(value); // Update the textStyle state as well
+      }
+  };
+  */
 
   const textPositionOptions = ['center', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
@@ -286,20 +318,66 @@ function Upload() {
               focusBorderColor="blue.500"
             />
           </FormControl>
-          <FormControl id="textStyleControl" mt={4}>
-            <FormLabel fontSize="sm" color="gray.600">
-              Text Style
-            </FormLabel>
-            <RadioGroup value={textStyle} onChange={setTextStyle}>
-              <Stack direction="column">
-                {textStyleOptions.map((style) => (
-                  <Radio key={style.value} value={style.value} id={`style-${style.value}`} name="textStyle">
-                    {style.label}
-                  </Radio>
+          {/* Removed Text Style Radio Group */}
+          <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4} mt={4}>
+            {/* Added Text Color Dropdown */}
+            <FormControl id="textColorControl">
+              <FormLabel htmlFor="textColorSelect" fontSize="sm" color="gray.600">
+                Text Color
+              </FormLabel>
+              <Select
+                id="textColorSelect"
+                name="textColor"
+                value={textColor}
+                onChange={(e) => setTextColor(e.target.value)}
+                focusBorderColor="blue.500"
+              >
+                {textColorOptions.map((color) => (
+                  <option key={color} value={color} style={{ textTransform: 'capitalize' }}>
+                    {color}
+                  </option>
                 ))}
-              </Stack>
-            </RadioGroup>
-          </FormControl>
+              </Select>
+            </FormControl>
+            {/* Added Font Style Dropdown */}
+            <FormControl id="fontStyleControl">
+              <FormLabel htmlFor="fontStyleSelect" fontSize="sm" color="gray.600">
+                Font Style
+              </FormLabel>
+              <Select
+                id="fontStyleSelect"
+                name="fontStyle"
+                value={fontStyle}
+                onChange={(e) => setFontStyle(e.target.value)}
+                focusBorderColor="blue.500"
+              >
+                {fontStyleOptions.map((font) => (
+                  <option key={font} value={font}>
+                    {font}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+            {/* Added Text Background Color Dropdown */}
+            <FormControl id="textBgColorControl">
+              <FormLabel htmlFor="textBgColorSelect" fontSize="sm" color="gray.600">
+                Text Background Color
+              </FormLabel>
+              <Select
+                id="textBgColorSelect"
+                name="textBgColor"
+                value={textBgColor}
+                onChange={(e) => setTextBgColor(e.target.value)}
+                focusBorderColor="blue.500"
+              >
+                {bgColorOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+          </SimpleGrid>
           <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4} mt={4}>
             <FormControl id="fontSizeControl">
               <FormLabel htmlFor="fontSizeInput" fontSize="sm" color="gray.600">
@@ -334,7 +412,22 @@ function Upload() {
                 ))}
               </Select>
             </FormControl>
-          </SimpleGrid>
+            {/* <FormControl id="fuzzControl">
+              <FormLabel htmlFor="fuzzInput" fontSize="sm" color="gray.600">
+                Compression Level (Fuzz)
+              </FormLabel>
+              <Input
+                id="fuzzInput"
+                name="fuzz"
+                type="number"
+                value={fuzz}
+                onChange={(e) => setFuzz(Number(e.target.value))}
+                min="0"
+                max="100"
+                focusBorderColor="blue.500"
+              />
+            </FormControl> */}
+         </SimpleGrid>
           <Button
             onClick={handleConvert}
             colorScheme="coral"

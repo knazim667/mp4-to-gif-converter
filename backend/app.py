@@ -109,6 +109,10 @@ def convert_file():
         text = data.get('text')  # Get text overlay
         font_size = data.get('font_size', 20)  # Get font size
         text_position = data.get('text_position', 'center')  # Get text position
+        text_color = data.get('text_color', 'white') # Get text color, default to white
+        font_style = data.get('font_style', 'Arial') # Get font style, default to Arial
+        text_bg_color = data.get('text_bg_color') # Get text background color, default to None
+        # fuzz = data.get('fuzz', 5)  # Fuzz parameter removed from convert_to_gif
 
         if not filename:
             logger.warning("No filename provided in convert request")
@@ -122,7 +126,20 @@ def convert_file():
         # Convert to GIF with optional trimming and text overlay
         output_filename = f"{os.path.splitext(filename)[0]}.gif"
         output_path = f"temp_{output_filename}"
-        convert_to_gif(input_path, output_path, fps, width, start, end, text, font_size, text_position)
+        convert_to_gif(
+            input_path=input_path, 
+            output_path=output_path, 
+            fps=fps, 
+            width=width, 
+            start=start, 
+            end=end, 
+            text=text, 
+            font_size=font_size, 
+            text_position=text_position, 
+            text_color=text_color, 
+            font_style=font_style,
+            text_bg_color=text_bg_color
+        )
 
         # Upload GIF to S3
         s3.upload_file(output_path, os.getenv('S3_BUCKET'), output_filename)
