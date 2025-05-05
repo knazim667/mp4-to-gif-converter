@@ -3,58 +3,67 @@ from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 import logging
 import moviepy.config as mp_config
 
-# Explicitly set the path to ImageMagick binary (adjust based on your system)
-# Example for macOS/Linux: "/usr/local/bin/magick" or "/usr/bin/convert"
-# Example for Windows: "C:\\Program Files\\ImageMagick-7.1.1-Q16-HDRI\\magick.exe"
-# Uncomment and adjust the line below if needed
+# Set the ImageMagick binary path for your system
 mp_config.IMAGEMAGICK_BINARY = "/opt/homebrew/bin/magick"
 
+# Configure logging
 logger = logging.getLogger(__name__)
 
-def convert_to_gif(input_path, output_path, fps=10, width=320, start=None, end=None, text=None, font_size=20, text_position='center', text_color='white', font_style='Arial', text_bg_color=None):
+def convert_to_gif(input_path, output_path, fps=10, width=320, height=None, start=None, end=None, text=None, font_size=20, text_position='center', text_color='white', font_style='Arial', text_bg_color=None):
     """
-    Convert an MP4 file to GIF using MoviePy with optional text overlay.
-    
+    Convert an MP4 file to GIF with optional trimming and text overlay using MoviePy.
+
     Args:
-        input_path (str): Path to input video file
-        output_path (str): Path to output GIF file
-        fps (int): Frames per second for GIF
-        width (int): Width of output GIF (height auto-scaled)
-        start (float): Start time for trimming (seconds)
-        end (float): End time for trimming (seconds)
-        text (str): Text to overlay on the GIF
-        font_size (int): Font size for the text
-        text_position (str): Position of the text (e.g., 'center', 'top-left', 'bottom-right')
-        text_color (str): Color of the text (e.g., 'white', 'black', '#FF0000')
-        font_style (str): Font family for the text (e.g., 'Arial', 'Times-New-Roman')
-        text_bg_color (str, optional): Background color for the text box (e.g., 'black', '#80808080'). Defaults to None (transparent).
-    
+        input_path (str): Path to the input MP4 file.
+        output_path (str): Path where the GIF will be saved.
+        fps (int): Frames per second for the output GIF (default: 10).
+        width (int): Width of the output GIF in pixels (default: 320).
+        height (int, optional): Height of the output GIF in pixels; if None, maintains aspect ratio.
+        start (float, optional): Start time for trimming in seconds.
+        end (float, optional): End time for trimming in seconds.
+        text (str, optional): Text to overlay on the GIF.
+        font_size (int): Font size for the text (default: 20).
+        text_position (str): Position of the text ('center', 'top-left', 'top-right', 'bottom-left', 'bottom-right').
+        text_color (str): Text color (e.g., 'white', '#FF0000') (default: 'white').
+        font_style (str): Font family for the text (e.g., 'Arial') (default: 'Arial').
+        text_bg_color (str, optional): Background color for the text (e.g., 'black', '#80808080'); None for transparent.
+
     Returns:
-        str: Path to generated GIF
+        str: Path to the generated GIF file.
+
+    Raises:
+        Exception: If conversion fails due to invalid input or processing errors.
     """
     try:
-        # Load video clip
-        # Use a variable for the clip to be written, default to the original
+        # Load the video clip
         clip = VideoFileClip(input_path)
-        
-        # Trim the clip if start or end is provided
+        logger.info(f"Loaded video clip from {input_path}, duration: {clip.duration}")
+
+        # Trim the clip if start or end times are specified
         if start is not None or end is not None:
             clip = clip.subclipped(start, end)
-        
-        # Resize the clip
-        clip = clip.resized(width=width)
+            logger.info(f"Trimmed clip to start: {start}, end: {end}")
 
-        clip_to_write = clip # Start with the potentially trimmed/resized clip
-        # Apply text overlay if text is provided
+        # Resize the clip
+        if height is not None:
+            clip = clip.resized((width, height))
+            logger.info(f"Resized clip to width: {width}, height: {height}")
+        else:
+            clip = clip.resized(width=width)
+            logger.info(f"Resized clip to width: {width}, maintaining aspect ratio")
+
+        # Add text overlay if provided
         if text:
             txt_clip = TextClip(
-                text=text, # Use keyword argument for clarity and safety
+                text=text,
                 font_size=font_size,
-                color=text_color, # Use the provided text_color
-                bg_color=text_bg_color, # Use the provided text_bg_color
-                font=font_style, # Use the provided font_style
+                color=text_color,
+                bg_color=text_bg_color if text_bg_color else None,
+                font=font_style,
+                stroke_color='black',
+                stroke_width=1
             )
-            # Map text_position to MoviePy-compatible position
+            # Define text position mapping
             position_map = {
                 'center': 'center',
                 'top-left': (10, 10),
@@ -64,32 +73,19 @@ def convert_to_gif(input_path, output_path, fps=10, width=320, start=None, end=N
             }
             position = position_map.get(text_position.lower(), 'center')
             txt_clip = txt_clip.with_position(position).with_duration(clip.duration)
-            clip_to_write = CompositeVideoClip([clip, txt_clip]) # Update the clip to write
+            clip = CompositeVideoClip([clip, txt_clip])
+            logger.info(f"Applied text overlay: '{text}' at position {text_position}")
 
-        # Write to GIF
-        # We will always write without fuzz due to persistent TypeErrors
-        write_kwargs = {'fps': fps} 
-
-        # Log whether ImageMagick is configured, but don't add fuzz
-        if hasattr(mp_config, 'IMAGEMAGICK_BINARY') and mp_config.IMAGEMAGICK_BINARY is not None:
-            logger.info(f"ImageMagick binary path is set ({mp_config.IMAGEMAGICK_BINARY}), but fuzz parameter is not used.")
-            # write_kwargs['fuzz'] = fuzz # Do NOT add fuzz
-        else:
-             logger.warning("ImageMagick binary path is not set or found in config. Writing GIF without fuzz.")
-
-        try:
-            logger.info(f"Writing GIF with args: {write_kwargs}")
-            clip_to_write.write_gif(output_path, **write_kwargs) # Use auto program detection
-            logger.info(f"Successfully wrote GIF to: {output_path}")
-        finally:
-             # Ensure clip is closed
-             if clip_to_write:
-                 clip_to_write.close()
-                 logger.debug("Closed video clip.")
-        
-        logger.info(f"Converted {input_path} to GIF: {output_path}")
+        # Write the GIF file
+        clip.write_gif(output_path, fps=fps)
+        logger.info(f"Successfully converted {input_path} to GIF: {output_path}")
         return output_path
-    
+
     except Exception as e:
-        logger.error(f"Conversion failed: {e}", exc_info=True) # Log traceback for better debugging
+        logger.error(f"Conversion failed: {str(e)}")
         raise
+    finally:
+        # Ensure the clip is closed
+        if 'clip' in locals():
+            clip.close()
+            logger.debug("Closed video clip")
