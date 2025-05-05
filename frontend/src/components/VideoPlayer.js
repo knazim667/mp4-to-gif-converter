@@ -8,12 +8,14 @@ function VideoPlayer({ src }) {
   const playerRef = useRef(null);
 
   useEffect(() => {
-    if (videoRef.current) {
+    if (videoRef.current && src) {
       playerRef.current = videojs(videoRef.current, {
         controls: true,
         autoplay: false,
         preload: 'auto',
         fluid: true,
+      }, () => {
+        playerRef.current.src({ type: 'video/mp4', src });
       });
     }
 

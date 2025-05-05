@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import VideoPlayer from './VideoPlayer';
 import TrimSlider from './TrimSlider';
@@ -17,32 +17,50 @@ function Upload() {
   const [width, setWidth] = useState(320);
   const [trim, setTrim] = useState({ start: 0, end: null });
   const [videoDuration, setVideoDuration] = useState(0);
-  const [scenePoints, setScenePoints] = useState([]); // New state for scene points
+  const [scenePoints, setScenePoints] = useState([]);
+  const [textOverlay, setTextOverlay] = useState('');
+  const [fontSize, setFontSize] = useState(20);
+  const [textPosition, setTextPosition] = useState('center');
+  const [videoSrc, setVideoSrc] = useState(null); // Store blob URL
   const fileInputRef = useRef(null);
 
   const borderColor = useColorModeValue('gray.300', 'gray.600');
   const dragBg = useColorModeValue('blue.50', 'blue.900');
   const hoverBorder = useColorModeValue('blue.400', 'blue.500');
 
+  // Clean up blob URL when component unmounts or file changes
+  useEffect(() => {
+    return () => {
+      if (videoSrc) {
+        URL.revokeObjectURL(videoSrc);
+      }
+    };
+  }, [videoSrc]);
+
   // Handle file selection
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile && ['video/mp4', 'video/avi', 'video/quicktime'].includes(selectedFile.type)) {
+      if (videoSrc) {
+        URL.revokeObjectURL(videoSrc);
+      }
+      const newSrc = URL.createObjectURL(selectedFile);
+      setVideoSrc(newSrc);
       setFile(selectedFile);
       setMessage('');
       setUploadedFilename('');
       setGifUrl('');
       setTrim({ start: 0, end: null });
-      setScenePoints([]); // Reset scene points
+      setScenePoints([]);
       const video = document.createElement('video');
-      video.src = URL.createObjectURL(selectedFile);
+      video.src = newSrc;
       video.onloadedmetadata = () => {
         setVideoDuration(video.duration);
         setTrim({ start: 0, end: video.duration });
-        URL.revokeObjectURL(video.src);
       };
     } else {
       setFile(null);
+      setVideoSrc(null);
       setMessage('Please select a valid MP4, AVI, or MOV file.');
     }
   };
@@ -62,21 +80,26 @@ function Upload() {
     setIsDragging(false);
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile && ['video/mp4', 'video/avi', 'video/quicktime'].includes(droppedFile.type)) {
+      if (videoSrc) {
+        URL.revokeObjectURL(videoSrc);
+      }
+      const newSrc = URL.createObjectURL(droppedFile);
+      setVideoSrc(newSrc);
       setFile(droppedFile);
       setMessage('');
       setUploadedFilename('');
       setGifUrl('');
       setTrim({ start: 0, end: null });
-      setScenePoints([]); // Reset scene points
+      setScenePoints([]);
       const video = document.createElement('video');
-      video.src = URL.createObjectURL(droppedFile);
+      video.src = newSrc;
       video.onloadedmetadata = () => {
         setVideoDuration(video.duration);
         setTrim({ start: 0, end: video.duration });
-        URL.revokeObjectURL(video.src);
       };
     } else {
       setFile(null);
+      setVideoSrc(null);
       setMessage('Please drop a valid MP4, AVI, or MOV file.');
     }
   };
@@ -99,15 +122,15 @@ function Upload() {
       setMessage(`Success: Uploaded ${uploadResponse.data.filename}`);
       setUploadedFilename(uploadResponse.data.filename);
 
-      // Analyze video for scene changes
       setMessage('Analyzing video...');
       const analyzeResponse = await axios.post(`${process.env.REACT_APP_API_URL}/analyze`, {
         filename: uploadResponse.data.filename,
       });
-      setScenePoints(analyzeResponse.data.scenes); // Set scene points
+      setScenePoints(analyzeResponse.data.scenes);
       setMessage(`Success: Uploaded and analyzed ${uploadResponse.data.filename}`);
 
       setFile(null);
+      setVideoSrc(null);
       fileInputRef.current.value = '';
     } catch (error) {
       setMessage(`Upload/Analysis failed: ${error.response?.data?.message || 'Server error'}`);
@@ -128,7 +151,10 @@ function Upload() {
         fps,
         width,
         start: trim.start,
-        end: trim.end
+        end: trim.end,
+        text: textOverlay,
+        font_size: fontSize,
+        text_position: textPosition
       });
       setMessage(`Success: Converted to ${response.data.filename}`);
       setGifUrl(response.data.url);
@@ -203,12 +229,12 @@ function Upload() {
       </Button>
 
       {/* Video Preview */}
-      {file && (
-        <VideoPlayer src={URL.createObjectURL(file)} />
+      {videoSrc && (
+        <VideoPlayer src={videoSrc} />
       )}
 
       {/* Conversion Settings */}
-      {uploadedFilename && (
+      {uploadedFilename && videoDuration > 0 && (
         <Box mt={8}>
           <Heading as="h3" size="md" color="gray.800" mb={4}>
             GIF Settings
@@ -238,6 +264,43 @@ function Upload() {
                 onChange={(e) => setWidth(Number(e.target.value))}
                 min="100"
                 max="1280"
+                focusBorderColor="blue.500"
+              />
+            </FormControl>
+          </SimpleGrid>
+          <FormControl mt={4}>
+            <FormLabel fontSize="sm" color="gray.600">
+              Text Overlay
+            </FormLabel>
+            <Input
+              value={textOverlay}
+              onChange={(e) => setTextOverlay(e.target.value)}
+              placeholder="Enter text"
+              focusBorderColor="blue.500"
+            />
+          </FormControl>
+          <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4} mt={4}>
+            <FormControl>
+              <FormLabel fontSize="sm" color="gray.600">
+                Font Size
+              </FormLabel>
+              <Input
+                type="number"
+                value={fontSize}
+                onChange={(e) => setFontSize(Number(e.target.value))}
+                min="10"
+                max="50"
+                focusBorderColor="blue.500"
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel fontSize="sm" color="gray.600">
+                Text Position
+              </FormLabel>
+              <Input
+                value={textPosition}
+                onChange={(e) => setTextPosition(e.target.value)}
+                placeholder="e.g., center, top-left"
                 focusBorderColor="blue.500"
               />
             </FormControl>

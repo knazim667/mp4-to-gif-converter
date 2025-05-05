@@ -106,6 +106,9 @@ def convert_file():
         width = data.get('width', 320)
         start = data.get('start', 0)
         end = data.get('end')  # Default to None if not provided
+        text = data.get('text')  # Get text overlay
+        font_size = data.get('font_size', 20)  # Get font size
+        text_position = data.get('text_position', 'center')  # Get text position
 
         if not filename:
             logger.warning("No filename provided in convert request")
@@ -116,10 +119,10 @@ def convert_file():
         s3.download_file(os.getenv('S3_BUCKET'), filename, input_path)
         logger.info(f"Downloaded {filename} from S3 to {input_path}")
 
-        # Convert to GIF with optional trimming
+        # Convert to GIF with optional trimming and text overlay
         output_filename = f"{os.path.splitext(filename)[0]}.gif"
         output_path = f"temp_{output_filename}"
-        convert_to_gif(input_path, output_path, fps, width, start, end)
+        convert_to_gif(input_path, output_path, fps, width, start, end, text, font_size, text_position)
 
         # Upload GIF to S3
         s3.upload_file(output_path, os.getenv('S3_BUCKET'), output_filename)
