@@ -1,5 +1,5 @@
 import os
-from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 import logging
 import moviepy.config as mp_config
 
@@ -35,21 +35,19 @@ def convert_to_gif(input_path, output_path, fps=10, width=320, start=None, end=N
         
         # Trim the clip if start or end is provided
         if start is not None or end is not None:
-            clip = clip.subclip(start, end)
+            clip = clip.subclipped(start, end)
         
         # Resize the clip
-        clip = clip.resize(width=width)
+        clip = clip.resized(width=width)
 
         # Apply text overlay if text is provided
         if text:
             txt_clip = TextClip(
-                text,
-                fontsize=font_size,
+                text=text, # Use keyword argument for clarity and safety
+                font_size=font_size,
                 color='white',
-                bg_color='black',
+                bg_color=None,
                 font='Arial',
-                stroke_color='black',
-                stroke_width=1
             )
             # Map text_position to MoviePy-compatible position
             position_map = {
@@ -60,7 +58,7 @@ def convert_to_gif(input_path, output_path, fps=10, width=320, start=None, end=N
                 'bottom-right': ('right', 'bottom')
             }
             position = position_map.get(text_position.lower(), 'center')
-            txt_clip = txt_clip.set_position(position).set_duration(clip.duration)
+            txt_clip = txt_clip.with_position(position).with_duration(clip.duration)
             clip = CompositeVideoClip([clip, txt_clip])
 
         # Write to GIF

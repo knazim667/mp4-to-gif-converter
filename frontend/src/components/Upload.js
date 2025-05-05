@@ -4,7 +4,7 @@ import VideoPlayer from './VideoPlayer';
 import TrimSlider from './TrimSlider';
 import { 
   Box, Heading, Text, VStack, Button, Input, FormControl, FormLabel, 
-  SimpleGrid, Center, Image, Link, useColorModeValue 
+  SimpleGrid, Center, Image, Link, useColorModeValue, Select, Radio, RadioGroup, Stack 
 } from '@chakra-ui/react';
 
 function Upload() {
@@ -21,14 +21,14 @@ function Upload() {
   const [textOverlay, setTextOverlay] = useState('');
   const [fontSize, setFontSize] = useState(20);
   const [textPosition, setTextPosition] = useState('center');
-  const [videoSrc, setVideoSrc] = useState(null); // Store blob URL
+  const [videoSrc, setVideoSrc] = useState(null);
+  const [textStyle, setTextStyle] = useState('default');
   const fileInputRef = useRef(null);
 
   const borderColor = useColorModeValue('gray.300', 'gray.600');
   const dragBg = useColorModeValue('blue.50', 'blue.900');
   const hoverBorder = useColorModeValue('blue.400', 'blue.500');
 
-  // Clean up blob URL when component unmounts or file changes
   useEffect(() => {
     return () => {
       if (videoSrc) {
@@ -37,7 +37,6 @@ function Upload() {
     };
   }, [videoSrc]);
 
-  // Handle file selection
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile && ['video/mp4', 'video/avi', 'video/quicktime'].includes(selectedFile.type)) {
@@ -65,7 +64,6 @@ function Upload() {
     }
   };
 
-  // Handle drag-and-drop
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragging(true);
@@ -104,7 +102,6 @@ function Upload() {
     }
   };
 
-  // Handle upload and analyze
   const handleUpload = async () => {
     if (!file) {
       setMessage('Please select or drop a file first.');
@@ -130,14 +127,12 @@ function Upload() {
       setMessage(`Success: Uploaded and analyzed ${uploadResponse.data.filename}`);
 
       setFile(null);
-      setVideoSrc(null);
       fileInputRef.current.value = '';
     } catch (error) {
       setMessage(`Upload/Analysis failed: ${error.response?.data?.message || 'Server error'}`);
     }
   };
 
-  // Handle conversion
   const handleConvert = async () => {
     if (!uploadedFilename) {
       setMessage('Please upload a file first.');
@@ -154,7 +149,8 @@ function Upload() {
         end: trim.end,
         text: textOverlay,
         font_size: fontSize,
-        text_position: textPosition
+        text_position: textPosition,
+        text_style: textStyle
       });
       setMessage(`Success: Converted to ${response.data.filename}`);
       setGifUrl(response.data.url);
@@ -163,10 +159,17 @@ function Upload() {
     }
   };
 
-  // Handle trim change
   const handleTrimChange = ({ start, end }) => {
     setTrim({ start, end });
   };
+
+  const textStyleOptions = [
+    { value: 'default', label: 'White on Black', color: 'white', bg_color: 'black' },
+    { value: 'yellow', label: 'Yellow on Blue', color: 'yellow', bg_color: 'blue' },
+    { value: 'red', label: 'Red on Gray', color: 'red', bg_color: 'gray' },
+  ];
+
+  const textPositionOptions = ['center', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
   return (
     <Box bg="white" borderRadius="xl" boxShadow="lg" p={{ base: 6, md: 8 }}>
@@ -174,7 +177,6 @@ function Upload() {
         Create Your GIF
       </Heading>
 
-      {/* Upload Section */}
       <Box
         borderWidth={2}
         borderStyle="dashed"
@@ -205,6 +207,7 @@ function Upload() {
           ref={fileInputRef}
           display="none"
           id="fileInput"
+          name="fileInput"
         />
         <Button
           as="label"
@@ -228,12 +231,10 @@ function Upload() {
         Upload Video
       </Button>
 
-      {/* Video Preview */}
-      {videoSrc && (
+      {(file || uploadedFilename) && videoSrc && (
         <VideoPlayer src={videoSrc} />
       )}
 
-      {/* Conversion Settings */}
       {uploadedFilename && videoDuration > 0 && (
         <Box mt={8}>
           <Heading as="h3" size="md" color="gray.800" mb={4}>
@@ -241,11 +242,13 @@ function Upload() {
           </Heading>
           <TrimSlider duration={videoDuration} scenes={scenePoints} onTrimChange={handleTrimChange} />
           <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4} mt={4}>
-            <FormControl>
-              <FormLabel fontSize="sm" color="gray.600">
+            <FormControl id="fpsControl">
+              <FormLabel htmlFor="fpsInput" fontSize="sm" color="gray.600">
                 Frames Per Second
               </FormLabel>
               <Input
+                id="fpsInput"
+                name="fps"
                 type="number"
                 value={fps}
                 onChange={(e) => setFps(Number(e.target.value))}
@@ -254,11 +257,13 @@ function Upload() {
                 focusBorderColor="blue.500"
               />
             </FormControl>
-            <FormControl>
-              <FormLabel fontSize="sm" color="gray.600">
+            <FormControl id="widthControl">
+              <FormLabel htmlFor="widthInput" fontSize="sm" color="gray.600">
                 Width (px)
               </FormLabel>
               <Input
+                id="widthInput"
+                name="width"
                 type="number"
                 value={width}
                 onChange={(e) => setWidth(Number(e.target.value))}
@@ -268,23 +273,41 @@ function Upload() {
               />
             </FormControl>
           </SimpleGrid>
-          <FormControl mt={4}>
-            <FormLabel fontSize="sm" color="gray.600">
+          <FormControl id="textOverlayControl" mt={4}>
+            <FormLabel htmlFor="textOverlayInput" fontSize="sm" color="gray.600">
               Text Overlay
             </FormLabel>
             <Input
+              id="textOverlayInput"
+              name="textOverlay"
               value={textOverlay}
               onChange={(e) => setTextOverlay(e.target.value)}
               placeholder="Enter text"
               focusBorderColor="blue.500"
             />
           </FormControl>
+          <FormControl id="textStyleControl" mt={4}>
+            <FormLabel fontSize="sm" color="gray.600">
+              Text Style
+            </FormLabel>
+            <RadioGroup value={textStyle} onChange={setTextStyle}>
+              <Stack direction="column">
+                {textStyleOptions.map((style) => (
+                  <Radio key={style.value} value={style.value} id={`style-${style.value}`} name="textStyle">
+                    {style.label}
+                  </Radio>
+                ))}
+              </Stack>
+            </RadioGroup>
+          </FormControl>
           <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4} mt={4}>
-            <FormControl>
-              <FormLabel fontSize="sm" color="gray.600">
+            <FormControl id="fontSizeControl">
+              <FormLabel htmlFor="fontSizeInput" fontSize="sm" color="gray.600">
                 Font Size
               </FormLabel>
               <Input
+                id="fontSizeInput"
+                name="fontSize"
                 type="number"
                 value={fontSize}
                 onChange={(e) => setFontSize(Number(e.target.value))}
@@ -293,16 +316,23 @@ function Upload() {
                 focusBorderColor="blue.500"
               />
             </FormControl>
-            <FormControl>
-              <FormLabel fontSize="sm" color="gray.600">
+            <FormControl id="textPositionControl">
+              <FormLabel htmlFor="textPositionSelect" fontSize="sm" color="gray.600">
                 Text Position
               </FormLabel>
-              <Input
+              <Select
+                id="textPositionSelect"
+                name="textPosition"
                 value={textPosition}
                 onChange={(e) => setTextPosition(e.target.value)}
-                placeholder="e.g., center, top-left"
                 focusBorderColor="blue.500"
-              />
+              >
+                {textPositionOptions.map((pos) => (
+                  <option key={pos} value={pos}>
+                    {pos}
+                  </option>
+                ))}
+              </Select>
             </FormControl>
           </SimpleGrid>
           <Button
@@ -317,7 +347,6 @@ function Upload() {
         </Box>
       )}
 
-      {/* Feedback Message */}
       {message && (
         <Text
           mt={6}
@@ -329,7 +358,6 @@ function Upload() {
         </Text>
       )}
 
-      {/* GIF Result */}
       {gifUrl && (
         <Box mt={8}>
           <Heading as="h3" size="md" color="gray.800" mb={4}>
