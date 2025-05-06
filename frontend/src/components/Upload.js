@@ -3,8 +3,8 @@ import axios from 'axios';
 import VideoPlayer from './VideoPlayer';
 import TrimSlider from './TrimSlider';
 import { 
-  Box, Heading, Text, VStack, Button, Input, FormControl, FormLabel, 
-  SimpleGrid, Center, Image, Link, useColorModeValue, Select, Radio, RadioGroup, Stack 
+  Box, Heading, Text, VStack, Button, Input, FormControl, FormLabel, Checkbox,
+  SimpleGrid, Center, Image, Link, useColorModeValue, Select, Radio, RadioGroup, Stack
 } from '@chakra-ui/react';
 
 function Upload() {
@@ -24,8 +24,10 @@ function Upload() {
   const [videoSrc, setVideoSrc] = useState(null);
   // const [textStyle, setTextStyle] = useState('default'); // Removed, using separate color/font
   const [fuzz, setFuzz] = useState(5);
+  const [textBgColor, setTextBgColor] = useState(''); // Added textBgColor state, '' means None
+    const [speedFactor, setSpeedFactor] = useState(1.0); // Added speedFactor state
+    const [reverse, setReverse] = useState(false); // Added reverse state
     const [textColor, setTextColor] = useState('white'); // Added textColor state
-    const [textBgColor, setTextBgColor] = useState(''); // Added textBgColor state, '' means None
     const [fontStyle, setFontStyle] = useState('Arial'); // Added fontStyle state
     const fileInputRef = useRef(null); // <<< Add this line back
 
@@ -157,6 +159,8 @@ function Upload() {
           // Use the color and font style from the radio buttons
           text_color: textColor, // Use state variable
           text_bg_color: textBgColor || null, // Send null if '' (None) is selected
+          speed_factor: speedFactor, // Send speed factor
+          reverse: reverse, // Send reverse flag
           font_style: fontStyle,
         // fuzz, // Fuzz parameter removed from backend
       });
@@ -376,6 +380,31 @@ function Upload() {
                   </option>
                 ))}
               </Select>
+            </FormControl>
+            {/* Added Speed Factor Input */}
+            <FormControl id="speedFactorControl">
+              <FormLabel htmlFor="speedFactorInput" fontSize="sm" color="gray.600">
+                Playback Speed (e.g., 1.0)
+              </FormLabel>
+              <Input
+                id="speedFactorInput"
+                name="speedFactor"
+                type="number"
+                step="0.1"
+                min="0.1"
+                max="5.0"
+                value={speedFactor}
+                onChange={(e) => setSpeedFactor(parseFloat(e.target.value) || 1.0)}
+                focusBorderColor="blue.500"
+              />
+            </FormControl>
+            {/* Added Reverse Checkbox */}
+            <FormControl id="reverseControl" display="flex" alignItems="center" pt={8}> {/* Added pt for alignment */}
+              <Checkbox
+                id="reverseCheckbox"
+                isChecked={reverse}
+                onChange={(e) => setReverse(e.target.checked)}
+              >Reverse Playback</Checkbox>
             </FormControl>
           </SimpleGrid>
           <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4} mt={4}>

@@ -2,6 +2,8 @@ import os
 from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 import logging
 import moviepy.config as mp_config
+# Import the main effects module
+# import moviepy.video.fx.all as vfx 
 
 # Set the ImageMagick binary path for your system
 mp_config.IMAGEMAGICK_BINARY = "/opt/homebrew/bin/magick"
@@ -9,7 +11,7 @@ mp_config.IMAGEMAGICK_BINARY = "/opt/homebrew/bin/magick"
 # Configure logging
 logger = logging.getLogger(__name__)
 
-def convert_to_gif(input_path, output_path, fps=10, width=320, height=None, start=None, end=None, text=None, font_size=20, text_position='center', text_color='white', font_style='Arial', text_bg_color=None):
+def convert_to_gif(input_path, output_path, fps=10, width=320, height=None, start=None, end=None, text=None, font_size=20, text_position='center', text_color='white', font_style='Arial', text_bg_color=None, speed_factor=1.0, reverse=False):
     """
     Convert an MP4 file to GIF with optional trimming and text overlay using MoviePy.
 
@@ -27,6 +29,8 @@ def convert_to_gif(input_path, output_path, fps=10, width=320, height=None, star
         text_color (str): Text color (e.g., 'white', '#FF0000') (default: 'white').
         font_style (str): Font family for the text (e.g., 'Arial') (default: 'Arial').
         text_bg_color (str, optional): Background color for the text (e.g., 'black', '#80808080'); None for transparent.
+        speed_factor (float): Factor to change playback speed (e.g., 2.0 for 2x speed, 0.5 for half speed) (default: 1.0).
+        reverse (bool): Whether to play the GIF in reverse (default: False).
 
     Returns:
         str: Path to the generated GIF file.
@@ -51,6 +55,16 @@ def convert_to_gif(input_path, output_path, fps=10, width=320, height=None, star
         else:
             clip = clip.resized(width=width)
             logger.info(f"Resized clip to width: {width}, maintaining aspect ratio")
+
+        # Apply speed change if factor is not 1.0
+        if speed_factor != 1.0:
+            clip = clip.with_speed_scaled(factor=speed_factor) # Use the built-in method
+            logger.info(f"Applied speed factor: {speed_factor}")
+
+        # Apply reverse effect if requested
+        if reverse:
+            clip = clip.fx(vfx.time_mirror) # Use vfx alias
+            logger.info("Applied reverse effect")
 
         # Add text overlay if provided
         if text:

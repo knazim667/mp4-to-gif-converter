@@ -112,6 +112,8 @@ def convert_file():
         text_color = data.get('text_color', 'white') # Get text color, default to white
         font_style = data.get('font_style', 'Arial') # Get font style, default to Arial
         text_bg_color = data.get('text_bg_color') # Get text background color, default to None
+        speed_factor = data.get('speed_factor', 1.0) # Get speed factor, default 1.0
+        reverse = data.get('reverse', False) # Get reverse flag, default False
         # fuzz = data.get('fuzz', 5)  # Fuzz parameter removed from convert_to_gif
 
         if not filename:
@@ -138,7 +140,9 @@ def convert_file():
             text_position=text_position, 
             text_color=text_color, 
             font_style=font_style,
-            text_bg_color=text_bg_color
+            text_bg_color=text_bg_color,
+            speed_factor=speed_factor,
+            reverse=reverse
         )
 
         # Upload GIF to S3
