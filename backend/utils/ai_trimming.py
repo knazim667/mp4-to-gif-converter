@@ -7,13 +7,13 @@ logger = logging.getLogger(__name__)
 def detect_scenes(video_path, threshold=30.0):
        """
        Detect scene changes in a video using OpenCV.
-       
+
        Args:
            video_path (str): Path to video file
            threshold (float): Threshold for detecting scene changes
-       
+
        Returns:
-           list: List of timestamps (in seconds) where scenes change
+           tuple: (list of scene timestamps, float duration of video)
        """
        try:
            cap = cv2.VideoCapture(video_path)
@@ -24,6 +24,9 @@ def detect_scenes(video_path, threshold=30.0):
            prev_frame = None
            frame_count = 0
            fps = cap.get(cv2.CAP_PROP_FPS)
+           total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+           duration = total_frames / fps if fps > 0 else 0 # Calculate duration
+
 
            while True:
                ret, frame = cap.read()
@@ -36,13 +39,13 @@ def detect_scenes(video_path, threshold=30.0):
                    score = np.mean(diff)
                    if score > threshold:
                        scenes.append(frame_count / fps)
-               
+
                prev_frame = frame
                frame_count += 1
 
            cap.release()
-           logger.info(f"Detected {len(scenes)} scene changes in {video_path}")
-           return scenes
+           logger.info(f"Detected {len(scenes)} scene changes in {video_path}, duration: {duration}s")
+           return scenes, duration # Return duration as well
 
        except Exception as e:
            logger.error(f"Scene detection failed: {e}")

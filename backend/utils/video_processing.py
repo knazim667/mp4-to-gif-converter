@@ -3,7 +3,7 @@ from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 import logging
 import moviepy.config as mp_config
 # Import the main effects module
-# import moviepy.video.fx.all as vfx 
+# import moviepy.video.fx.all as vfx # Not needed if using fl_time for reverse
 
 # Set the ImageMagick binary path for your system
 mp_config.IMAGEMAGICK_BINARY = "/opt/homebrew/bin/magick"
@@ -63,7 +63,10 @@ def convert_to_gif(input_path, output_path, fps=10, width=320, height=None, star
 
         # Apply reverse effect if requested
         if reverse:
-            clip = clip.fx(vfx.time_mirror) # Use vfx alias
+            if clip.duration is None:
+                logger.error("Cannot reverse a clip with an unknown duration.")
+                raise ValueError("Clip duration must be known to reverse it.")
+            clip = clip[::-1] # Reverse the clip using slicing
             logger.info("Applied reverse effect")
 
         # Add text overlay if provided
