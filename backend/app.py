@@ -5,21 +5,21 @@ import os
 import subprocess
 import requests
 import shutil
-import yt_dlp # For downloading from YouTube and other sites
-import uuid # For generating unique filenames
+import yt_dlp  # For downloading from YouTube and other sites
+import uuid  # For generating unique filenames
 
 from dotenv import load_dotenv
 import logging
-from utils.video_processing import convert_to_gif # Assuming this is correctly set up
-from utils.ai_trimming import detect_scenes # Assuming this is correctly set up
+from utils.video_processing import process_video_output  # Updated import
+from utils.ai_trimming import detect_scenes
 
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app, resources={r"/*": {
-       "origins": ["http://localhost:3000"], # Adjust if your frontend runs elsewhere
-       "methods": ["GET", "POST", "OPTIONS"],
-       "allow_headers": ["Content-Type", "Authorization"]
-   }})
+    "origins": ["http://localhost:3000", "http://192.168.12.238:3000"],
+    "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+    "allow_headers": ["Content-Type", "Authorization"]
+}})
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -30,20 +30,19 @@ load_dotenv()
 
 # Initialize AWS S3 client
 try:
-       s3 = boto3.client(
-           's3',
-           aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-           aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-           region_name=os.getenv('AWS_REGION', 'us-east-1') # Optional: specify region
-       )
-       S3_BUCKET_NAME = os.getenv('S3_BUCKET')
-       if not S3_BUCKET_NAME:
-           logger.error("S3_BUCKET environment variable not set.")
-           raise ValueError("S3_BUCKET environment variable not set.")
-
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+        region_name=os.getenv('AWS_REGION', 'us-east-1')
+    )
+    S3_BUCKET_NAME = os.getenv('S3_BUCKET')
+    if not S3_BUCKET_NAME:
+        logger.error("S3_BUCKET environment variable not set.")
+        raise ValueError("S3_BUCKET environment variable not set.")
 except Exception as e:
-       logger.error(f"Failed to initialize S3 client or get S3_BUCKET: {e}")
-       raise
+    logger.error(f"Failed to initialize S3 client or get S3_BUCKET: {e}")
+    raise
 
 # Function to scan files with ClamAV
 def scan_file(file_path):
@@ -68,7 +67,6 @@ def scan_file(file_path):
         logger.error(f"ClamAV unexpected error during scan of {file_path}: {e}", exc_info=True)
         raise SystemError('ClamAV execution error.')
 
-
 # Function to download a file from a URL
 def download_file_from_url(video_url, save_path_without_extension):
     is_youtube_like_url = any(site in video_url for site in ["youtube.com/", "youtu.be/", "vimeo.com/", "dailymotion.com/"])
@@ -82,7 +80,6 @@ def download_file_from_url(video_url, save_path_without_extension):
                 'quiet': False,
                 'merge_output_format': 'mp4',
                 'postprocessors': [{'key': 'FFmpegVideoConvertor', 'preferedformat': 'mp4'}],
-                # 'max_filesize': '100M', # Example: Limit filesize
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info_dict = ydl.extract_info(video_url, download=True)
@@ -96,7 +93,7 @@ def download_file_from_url(video_url, save_path_without_extension):
             logger.info(f"Attempting to download video from direct URL: {video_url}")
             file_extension = os.path.splitext(video_url.split('?')[0])[-1].lower()
             if not file_extension or file_extension not in ['.mp4', '.avi', '.mov', '.webm', '.mkv']:
-                file_extension = '.mp4'
+                file_extension = '.mp4' # Default to .mp4 if extension is missing or not typical video
             save_path_with_extension = f"{save_path_without_extension}{file_extension}"
             with requests.get(video_url, stream=True, timeout=60) as r:
                 r.raise_for_status()
@@ -120,6 +117,7 @@ def download_file_from_url(video_url, save_path_without_extension):
 def upload_file_route():
     if request.method == 'OPTIONS':
         return jsonify({'status': 'ok'}), 200
+    temp_local_path = None # Initialize to ensure it's defined for finally block
     try:
         if 'video' not in request.files:
             return jsonify({'status': 'error', 'message': 'No file part in request'}), 400
@@ -128,40 +126,40 @@ def upload_file_route():
             return jsonify({'status': 'error', 'message': 'No file selected'}), 400
 
         _, file_extension = os.path.splitext(file.filename)
-        s3_filename = f"upload_{uuid.uuid4().hex}{file_extension}" # Use UUID for S3 filename to ensure uniqueness
-        temp_local_path = f"temp_{s3_filename}"
+        s3_filename = f"upload_{uuid.uuid4().hex}{file_extension}"
+        temp_local_path = f"temp_{s3_filename}" # Use a more unique temp name
 
         allowed_extensions = ('.mp4', '.avi', '.mov', '.webm', '.mkv')
-        if not file_extension.lower() in allowed_extensions :
+        if not file_extension.lower() in allowed_extensions:
             return jsonify({'status': 'error', 'message': f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"}), 400
 
         file.save(temp_local_path)
         logger.info(f"Saved temporary file: {temp_local_path}")
-        scan_file(temp_local_path)
+        scan_file(temp_local_path) # Scan the locally saved file
         s3.upload_file(temp_local_path, S3_BUCKET_NAME, s3_filename)
         logger.info(f"Uploaded {s3_filename} to S3 bucket {S3_BUCKET_NAME}")
-        os.remove(temp_local_path)
-        logger.info(f"Removed temporary file: {temp_local_path}")
         return jsonify({'status': 'success', 'filename': s3_filename}), 200
-    except ValueError as ve:
+    except ValueError as ve: # Catches ClamAV infection or other ValueErrors
         logger.error(f"Upload failed: {ve}")
-        if 'temp_local_path' in locals() and os.path.exists(temp_local_path): os.remove(temp_local_path)
         return jsonify({'status': 'error', 'message': str(ve)}), 400
-    except SystemError as se:
+    except SystemError as se: # Catches ClamAV system errors
         logger.error(f"Upload failed due to system error: {se}")
-        if 'temp_local_path' in locals() and os.path.exists(temp_local_path): os.remove(temp_local_path)
         return jsonify({'status': 'error', 'message': str(se)}), 500
     except Exception as e:
         logger.error(f"Unexpected error during upload: {e}", exc_info=True)
-        if 'temp_local_path' in locals() and os.path.exists(temp_local_path): os.remove(temp_local_path)
         return jsonify({'status': 'error', 'message': 'Server error during upload'}), 500
+    finally:
+        if temp_local_path and os.path.exists(temp_local_path):
+            os.remove(temp_local_path)
+            logger.info(f"Removed temporary file from upload: {temp_local_path}")
+
 
 # Endpoint to process video from URL
 @app.route('/process-url', methods=['POST', 'OPTIONS'])
 def process_url_route():
     if request.method == 'OPTIONS':
         return jsonify({'status': 'ok'}), 200
-    downloaded_temp_file_path = None # Initialize to ensure it's defined for finally block
+    downloaded_temp_file_path = None
     try:
         data = request.get_json()
         video_url = data.get('url')
@@ -174,7 +172,9 @@ def process_url_route():
         if not downloaded_temp_file_path or not os.path.exists(downloaded_temp_file_path):
             return jsonify({'status': 'error', 'message': 'Failed to download or save video from URL'}), 500
 
-        s3_filename = os.path.basename(downloaded_temp_file_path)
+        # Use the actual downloaded filename (which includes extension from yt-dlp or guessed) for S3
+        s3_filename = f"url_processed_{uuid.uuid4().hex}{os.path.splitext(downloaded_temp_file_path)[1]}"
+        
         scan_file(downloaded_temp_file_path)
         s3.upload_file(downloaded_temp_file_path, S3_BUCKET_NAME, s3_filename)
         logger.info(f"Uploaded {s3_filename} from URL to S3 bucket {S3_BUCKET_NAME}")
@@ -193,16 +193,15 @@ def process_url_route():
             os.remove(downloaded_temp_file_path)
             logger.info(f"Removed temporary file from URL processing: {downloaded_temp_file_path}")
 
-
 # Analyze endpoint for AI trimming and getting video info
 @app.route('/analyze', methods=['POST', 'OPTIONS'])
 def analyze_file_route():
     if request.method == 'OPTIONS':
         return jsonify({'status': 'ok'}), 200
-    temp_input_filename = None # Initialize
+    temp_input_filename = None
     try:
         data = request.get_json()
-        s3_filename_to_analyze = data.get('filename') # This is the filename in S3
+        s3_filename_to_analyze = data.get('filename')
         if not s3_filename_to_analyze:
             return jsonify({'status': 'error', 'message': 'Filename required for analysis'}), 400
 
@@ -212,15 +211,14 @@ def analyze_file_route():
         s3.download_file(S3_BUCKET_NAME, s3_filename_to_analyze, temp_input_filename)
         logger.info(f"Downloaded {s3_filename_to_analyze} from S3 to {temp_input_filename} for analysis")
 
-        # Generate presigned URL for the MP4 preview
         presigned_preview_url = s3.generate_presigned_url(
             'get_object',
             Params={'Bucket': S3_BUCKET_NAME, 'Key': s3_filename_to_analyze},
-            ExpiresIn=3600  # URL expires in 1 hour
+            ExpiresIn=3600 # 1 hour
         )
         logger.info(f"Generated presigned preview URL for {s3_filename_to_analyze}")
 
-        scenes, duration = detect_scenes(temp_input_filename) # Assuming detect_scenes returns (scenes, duration)
+        scenes, duration = detect_scenes(temp_input_filename)
 
         return jsonify({
             'status': 'success',
@@ -228,17 +226,16 @@ def analyze_file_route():
             'duration': duration,
             'preview_url': presigned_preview_url
         }), 200
-    except ValueError as ve:
+    except ValueError as ve: # Catches errors from detect_scenes if video can't be opened
         logger.error(f"Analysis failed: {ve}")
         return jsonify({'status': 'error', 'message': str(ve)}), 400
-    except Exception as e:
+    except Exception as e: # Catches S3 errors or other unexpected issues
         logger.error(f"Unexpected error during analysis: {e}", exc_info=True)
         return jsonify({'status': 'error', 'message': 'Server error during analysis'}), 500
     finally:
         if temp_input_filename and os.path.exists(temp_input_filename):
             os.remove(temp_input_filename)
             logger.info(f"Removed temporary analysis file: {temp_input_filename}")
-
 
 # Convert endpoint
 @app.route('/convert', methods=['POST', 'OPTIONS'])
@@ -247,10 +244,10 @@ def convert_file_route():
         return jsonify({'status': 'ok'}), 200
     
     temp_input_filename = None
-    local_temp_gif_path = None
+    local_temp_output_path = None
     try:
         data = request.get_json()
-        s3_input_filename = data.get('filename') # This is the filename in S3
+        s3_input_filename = data.get('filename')
         fps = data.get('fps', 10)
         width = data.get('width', 320)
         start = data.get('start')
@@ -263,6 +260,7 @@ def convert_file_route():
         text_bg_color = data.get('text_bg_color')
         speed_factor = data.get('speed_factor', 1.0)
         reverse = data.get('reverse', False)
+        include_audio = data.get('include_audio', False) # New parameter
 
         if not s3_input_filename:
             return jsonify({'status': 'error', 'message': 'Filename required for conversion'}), 400
@@ -270,48 +268,50 @@ def convert_file_route():
         base_input_name, input_ext = os.path.splitext(s3_input_filename)
         temp_input_filename = f"temp_convert_in_{uuid.uuid4().hex}{input_ext}"
         
-        s3_output_gif_filename = f"{base_input_name}.gif" # GIF filename for S3
-        local_temp_gif_path = f"temp_convert_out_{uuid.uuid4().hex}.gif" # Local temp GIF path
+        output_extension = ".mp4" if include_audio else ".gif"
+        s3_output_filename = f"{base_input_name}_processed_{uuid.uuid4().hex[:8]}{output_extension}"
+        local_temp_output_path = f"temp_convert_out_{uuid.uuid4().hex}{output_extension}"
 
         s3.download_file(S3_BUCKET_NAME, s3_input_filename, temp_input_filename)
         logger.info(f"Downloaded {s3_input_filename} from S3 to {temp_input_filename} for conversion")
 
-        convert_to_gif(
-            input_path=temp_input_filename, output_path=local_temp_gif_path,
+        process_video_output( # Use the renamed function
+            input_path=temp_input_filename, output_path=local_temp_output_path,
             fps=fps, width=width, start=start, end=end, text=text,
             font_size=font_size, text_position=text_position, text_color=text_color,
             font_style=font_style, text_bg_color=text_bg_color,
-            speed_factor=speed_factor, reverse=reverse
+            speed_factor=speed_factor, reverse=reverse, include_audio=include_audio # Pass include_audio
         )
 
-        s3.upload_file(local_temp_gif_path, S3_BUCKET_NAME, s3_output_gif_filename)
-        logger.info(f"Uploaded {s3_output_gif_filename} to S3 bucket {S3_BUCKET_NAME}")
+        content_type = 'video/mp4' if include_audio else 'image/gif'
+        s3.upload_file(local_temp_output_path, S3_BUCKET_NAME, s3_output_filename, ExtraArgs={'ContentType': content_type})
+        logger.info(f"Uploaded {s3_output_filename} ({content_type}) to S3 bucket {S3_BUCKET_NAME}")
 
-        presigned_gif_url = s3.generate_presigned_url(
+        presigned_output_url = s3.generate_presigned_url(
             'get_object',
-            Params={'Bucket': S3_BUCKET_NAME, 'Key': s3_output_gif_filename},
-            ExpiresIn=3600
+            Params={'Bucket': S3_BUCKET_NAME, 'Key': s3_output_filename},
+            ExpiresIn=3600 # 1 hour
         )
-        logger.info(f"Generated presigned URL for GIF: {s3_output_gif_filename}")
+        logger.info(f"Generated presigned URL for output: {s3_output_filename}")
 
         return jsonify({
             'status': 'success',
-            'filename': s3_output_gif_filename,
-            'url': presigned_gif_url
+            'filename': s3_output_filename, # This is the S3 key
+            'url': presigned_output_url
         }), 200
-    except ValueError as ve:
+    except ValueError as ve: # Catches errors from video processing or other ValueErrors
         logger.error(f"Conversion failed: {ve}")
         return jsonify({'status': 'error', 'message': str(ve)}), 400
-    except Exception as e:
+    except Exception as e: # Catches S3 errors or other unexpected issues
         logger.error(f"Unexpected error during conversion: {e}", exc_info=True)
         return jsonify({'status': 'error', 'message': 'Server error during conversion'}), 500
     finally:
         if temp_input_filename and os.path.exists(temp_input_filename):
             os.remove(temp_input_filename)
             logger.info(f"Removed temporary input file for conversion: {temp_input_filename}")
-        if local_temp_gif_path and os.path.exists(local_temp_gif_path):
-            os.remove(local_temp_gif_path)
-            logger.info(f"Removed temporary output GIF file: {local_temp_gif_path}")
+        if local_temp_output_path and os.path.exists(local_temp_output_path):
+            os.remove(local_temp_output_path)
+            logger.info(f"Removed temporary output file: {local_temp_output_path}")
 
 # Home endpoint for testing
 @app.route('/')
@@ -319,4 +319,6 @@ def home():
     return jsonify({'message': 'MP4 to GIF Converter API is running!'}), 200
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
+    # Make sure the PORT environment variable is used if set, otherwise default to 5000
+    port = int(os.getenv('PORT', 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)

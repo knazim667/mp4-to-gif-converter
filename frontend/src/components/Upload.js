@@ -34,6 +34,7 @@ function Upload() {
   const [fontStyle, setFontStyle] = useState('Arial');
   const [speedFactor, setSpeedFactor] = useState(1.0);
   const [reverse, setReverse] = useState(false);
+  const [includeAudio, setIncludeAudio] = useState(false); // New state for audio inclusion
   const [gifUrl, setGifUrl] = useState(''); // URL of the converted GIF
 
   const fileInputRef = useRef(null);
@@ -49,13 +50,17 @@ function Upload() {
   const selectedFileNameColor = useColorModeValue('blue.600', 'blue.300'); // Color for selected file name
   const gifResultBoxBg = useColorModeValue('gray.50', 'gray.700'); // BG for the GIF result box
   // Cleanup for local video preview URL
+  // This useEffect is responsible for revoking blob URLs when they are no longer needed.
   useEffect(() => {
+    const srcToManage = videoSrc; // Capture the src for this specific effect run.
+
     return () => {
-      if (videoSrc) {
-        URL.revokeObjectURL(videoSrc);
+      // Only revoke if srcToManage was a blob URL.
+      if (srcToManage && srcToManage.startsWith('blob:')) {
+        URL.revokeObjectURL(srcToManage);
       }
     };
-  }, [videoSrc]);
+  }, [videoSrc]); // Re-run this effect if videoSrc changes.
 
   const resetConversionStates = () => {
     setGifUrl('');
@@ -68,9 +73,6 @@ function Upload() {
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile && ['video/mp4', 'video/avi', 'video/quicktime', 'video/webm', 'video/x-matroska'].includes(selectedFile.type)) {
-      if (videoSrc) {
-        URL.revokeObjectURL(videoSrc);
-      }
       const newSrc = URL.createObjectURL(selectedFile);
       setVideoSrc(newSrc);
       setFile(selectedFile);
@@ -106,9 +108,6 @@ function Upload() {
     setIsDragging(false);
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile && ['video/mp4', 'video/avi', 'video/quicktime', 'video/webm', 'video/x-matroska'].includes(droppedFile.type)) {
-      if (videoSrc) {
-        URL.revokeObjectURL(videoSrc);
-      }
       const newSrc = URL.createObjectURL(droppedFile);
       setVideoSrc(newSrc);
       setFile(droppedFile);
@@ -180,13 +179,31 @@ function Upload() {
     if (filenameToProcess) {
       try {
         setMessage({ text: 'Analyzing video...', type: 'info' });
+        // Capture videoSrc before analysis, in case it's a local blob URL we want to preserve
+        const videoSrcPriorToAnalysis = videoSrc;
+
         const analyzeResponse = await axios.post(`${process.env.REACT_APP_API_URL}/analyze`, {
           filename: filenameToProcess,
         });
+
+        const backendPreviewUrl = analyzeResponse.data.preview_url;
+        // Always update duration, scenes, and trim from analysis data
         setScenePoints(analyzeResponse.data.scenes);
         setVideoDuration(analyzeResponse.data.duration);
         setTrim({ start: 0, end: analyzeResponse.data.duration });
-        setVideoSrc(analyzeResponse.data.preview_url); // Set videoSrc for preview
+
+        if (backendPreviewUrl) {
+          // If the backend provides a new preview URL, use it.
+          setVideoSrc(backendPreviewUrl);
+        } else if (videoSrcPriorToAnalysis && videoSrcPriorToAnalysis.startsWith('blob:')) {
+          // If backend didn't provide a preview URL, but we had a local blob preview captured
+          // before the /analyze call, ensure videoSrc is set to this captured blob URL.
+          // This handles cases where videoSrc might have been inadvertently changed during awaits.
+          setVideoSrc(videoSrcPriorToAnalysis);
+        } else {
+          // If backend didn't provide a preview URL AND there was no prior blob preview (e.g. from URL input path)
+          setVideoSrc(null); // Or setVideoSrc(backendPreviewUrl) which would be falsy
+        }
         setMessage({ text: `Video analyzed successfully. Ready to convert.`, type: 'success' });
       } catch (error) {
         setMessage({ text: `Analysis failed: ${error.response?.data?.message || 'Server error'}`, type: 'error' });
@@ -220,6 +237,7 @@ function Upload() {
         font_style: fontStyle,
         speed_factor: speedFactor,
         reverse: reverse,
+        include_audio: includeAudio, // Send audio preference to backend
       });
       setMessage({ text: `Success: Converted to ${response.data.filename}`, type: 'success' });
       setGifUrl(response.data.url);
@@ -319,8 +337,8 @@ function Upload() {
               if (e.target.value) {
                 setFile(null);
                 if (fileInputRef.current) fileInputRef.current.value = '';
-                setVideoSrc(null);
                 resetConversionStates();
+                // videoSrc is intentionally not cleared here to keep local preview if user is just typing in URL field
                 setUploadedFilename('');
               }
             }}
@@ -341,12 +359,7 @@ function Upload() {
         </Button>
       </VStack>
 
-      {videoSrc && !gifUrl && ( // Show preview if videoSrc is available and no GIF is generated yet
-         <Box mt={6}>
-            <Heading as="h4" size="sm" mb={2}>Video Preview</Heading>
-            <VideoPlayer src={videoSrc} />
-         </Box>
-      )}
+      {videoSrc && !gifUrl && <VideoPlayer src={videoSrc} />}
 
       {uploadedFilename && videoDuration > 0 && (
         <Box mt={8}>
@@ -425,6 +438,11 @@ function Upload() {
             </FormControl>
           </SimpleGrid>
 
+          <FormControl display="flex" alignItems="center" mt={4}>
+            <Checkbox id="includeAudioCheckbox" isChecked={includeAudio} onChange={(e) => setIncludeAudio(e.target.checked)}>
+              Include Audio (outputs as short video e.g., MP4)
+            </Checkbox>
+          </FormControl>
           <Button
             onClick={handleConvert}
             colorScheme="purple"
@@ -442,15 +460,22 @@ function Upload() {
       {gifUrl && (
         <Box mt={8}>
           <Heading as="h3" size="md" mb={4}>
-            Your GIF is Ready!
+            Your {includeAudio ? 'Video' : 'GIF'} is Ready!
           </Heading>
           <Box bg={gifResultBoxBg} borderRadius="lg" p={4}>
             <Center>
-              <Image src={gifUrl} alt="Converted GIF" maxW="full" borderRadius="md" />
+              {includeAudio ? (
+                // If audio is included, use VideoPlayer for the output (likely MP4)
+                // The 'gifUrl' state would now hold the URL to the video file
+                <VideoPlayer src={gifUrl} />
+              ) : (
+                // Otherwise, display as an image (standard GIF)
+                <Image src={gifUrl} alt="Converted GIF" maxW="full" borderRadius="md" />
+              )}
             </Center>
             <Link href={gifUrl} download isExternal _hover={{textDecoration: 'none'}}>
               <Button colorScheme="teal" size="lg" w="full" mt={4}>
-                Download GIF
+                Download {includeAudio ? 'Video' : 'GIF'}
               </Button>
             </Link>
           </Box>
