@@ -81,7 +81,6 @@ def process_video_output(input_path, output_path, fps=10, width=320, height=None
                 logger.info(f"Trimmed clip to start: {start_time:.2f}s, end: {end_time:.2f}s. New duration: {processed_clip.duration:.2f}s")
 
             # Apply crop if parameters are provided
-            # .crop() method is generally consistent in MoviePy 2.x
             if crop_params and all(k in crop_params for k in ['x1', 'y1', 'width', 'height']):
                 try:
                     x1, y1, w, h = crop_params['x1'], crop_params['y1'], crop_params['width'], crop_params['height']
@@ -90,10 +89,7 @@ def process_video_output(input_path, output_path, fps=10, width=320, height=None
                        x1 >= 0 and y1 >= 0 and \
                        (x1 + w) <= processed_clip.w and \
                        (y1 + h) <= processed_clip.h:
-                        # MOVIEPY 2.x: Use with_effects and instantiate the Crop class
-                        # Crop class takes x1, y1, x2, y2 or combinations with width/height
-                        # We have x1, y1, width, height, so we can calculate x2, y2
-                        # The vfx.Crop class can handle x1, y1, width, height
+                        # MOVIEPY 2.x: Use with_effects and instantiate the Crop class via vfx
                         crop_instance = vfx.Crop(x1=x1, y1=y1, width=w, height=h)
                         processed_clip = processed_clip.with_effects([crop_instance])
                         logger.info(f"Applied crop: x1={x1}, y1={y1}, width={w}, height={h}. New size: {processed_clip.size}")
@@ -104,7 +100,7 @@ def process_video_output(input_path, output_path, fps=10, width=320, height=None
 
             # Apply speed factor
             if speed_factor != 1.0:
-                # MOVIEPY 2.x: Use fx method with vfx.speedx
+                # MOVIEPY 2.x: Use with_speed_scaled method
                 processed_clip = processed_clip.with_speed_scaled(factor=speed_factor)
                 logger.info(f"Applied speed factor: {speed_factor}. New duration: {processed_clip.duration:.2f}s")
 
@@ -196,19 +192,17 @@ def process_video_output(input_path, output_path, fps=10, width=320, height=None
         raise
     finally:
         # The 'with VideoFileClip...' handles closing the initially loaded clip.
-        # If intermediate clips (processed_clip, txt_clip) hold resources,
-        # MoviePy 2.x aims for better automatic cleanup, but explicit closing
-        # can be done if memory issues are observed with very long processing chains.
+        # MoviePy 2.x aims for better automatic cleanup of intermediate clips.
+        # Explicitly closing 'processed_clip' here is generally not needed unless
+        # it's a CompositeVideoClip with many sources and memory issues are observed.
         # For now, relying on Python's garbage collection and MoviePy's management.
         if processed_clip and hasattr(processed_clip, 'close') and callable(processed_clip.close):
             # This check is a bit more robust before calling close
             try:
-                # Only close if it's not the same object as the one managed by 'with'
-                # or if it's an intermediate clip that needs explicit closing.
-                # However, direct clip.close() on intermediate fx results is often not needed
-                # unless it's a CompositeVideoClip with many sources.
-                # For simplicity here, we assume 'with' handles the main file resource.
-                pass # logger.debug("Skipping explicit close for processed_clip in finally; relying on GC / with statement.")
+                # This was a source of error if processed_clip was not the original loaded_clip
+                # and didn't have a reader (e.g. after some fx).
+                # Best to let the 'with' statement handle the main resource.
+                pass
             except Exception as e_close:
                 logger.error(f"Error attempting to close a processed clip: {e_close}", exc_info=True)
 
@@ -218,7 +212,7 @@ if __name__ == '__main__':
     if not os.path.exists('input.mp4'):
         try:
             # Ensure ColorClip is imported if used standalone here
-            from moviepy.editor import ColorClip
+            from moviepy import ColorClip # Corrected import for standalone use
             ColorClip(size=(640, 480), color=(0,0,0), duration=5, fps=25).write_videofile("input.mp4")
             logger.info("Created a dummy 'input.mp4' for testing.")
         except Exception as e:
@@ -248,7 +242,7 @@ if __name__ == '__main__':
             output_mp4_path = process_video_output(
                 input_path='input.mp4',
                 output_path='output_audio.mp4',
-                fps=25,
+                fps=25, # Will use original if available for MP4
                 width=480,
                 start=0.5,
                 end=4.5,
@@ -256,12 +250,12 @@ if __name__ == '__main__':
                 font_size=24,
                 text_position='bottom-center',
                 text_color='yellow',
-                font_style='Arial',
-                text_bg_color='black@0.5',
+                font_style='Arial', # Ensure this font is available
+                text_bg_color='black@0.5', # Example with alpha
                 speed_factor=1.5,
                 reverse=False,
                 include_audio=True,
-                crop_params={'x1': 10, 'y1': 10, 'width': 600, 'height': 400} # Ensure crop area is valid
+                crop_params={'x1': 10, 'y1': 10, 'width': 600, 'height': 400} # Ensure crop area is valid for 640x480
             )
             logger.info(f"Test Case 2 generated: {output_mp4_path}")
         except Exception as e:
@@ -273,14 +267,14 @@ if __name__ == '__main__':
             output_mp4_rev_path = process_video_output(
                 input_path='input.mp4',
                 output_path='output_reversed.mp4',
-                height=240,
+                height=240, # Width will be auto-calculated
                 start=1,
                 end=3,
                 text="Reversed & Resized",
                 font_size=30,
-                text_position=('center', 60),
+                text_position=('center', 60), # Example tuple position
                 text_color='#FF00FF',
-                font_style='Arial',
+                font_style='Arial', # Ensure this font is available
                 speed_factor=1.0, # Test with normal speed but reversed
                 reverse=True,
                 include_audio=False,

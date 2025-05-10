@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import VideoPlayer from './VideoPlayer'; // Assuming you have this component
 import TrimSlider from './TrimSlider';   // Assuming you have this component
@@ -42,6 +42,11 @@ function Upload() {
   const [cropY, setCropY] = useState(null);
   const [cropW, setCropW] = useState(null);
   const [cropH, setCropH] = useState(null);
+  // State for visual cropper
+  const [showVisualCropper, setShowVisualCropper] = useState(false);
+  const [videoPreviewDimensions, setVideoPreviewDimensions] = useState({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 });
+  const [selectionRect, setSelectionRect] = useState({ x: 0, y: 0, width: 100, height: 100 }); // Initial/default selection for visual cropper
+
 
   const [gifUrl, setGifUrl] = useState(''); // URL of the converted GIF
 
@@ -84,6 +89,7 @@ function Upload() {
     setCropY(null);
     setCropW(null);
     setCropH(null);
+    setShowVisualCropper(false); // Reset visual cropper state
     // Optionally reset other GIF settings here if desired
   };
 
@@ -102,6 +108,13 @@ function Upload() {
       video.onloadedmetadata = () => {
         setVideoDuration(video.duration);
         setTrim({ start: 0, end: video.duration });
+        // Call handleVideoMetadata here as well for local files
+        handleVideoMetadata({
+            width: video.videoWidth,
+            height: video.videoHeight,
+            naturalWidth: video.videoWidth,
+            naturalHeight: video.videoHeight
+        });
       };
       setVideoUrlInput(''); // Clear URL input
     } else {
@@ -137,6 +150,13 @@ function Upload() {
       video.onloadedmetadata = () => {
         setVideoDuration(video.duration);
         setTrim({ start: 0, end: video.duration });
+         // Call handleVideoMetadata here as well for local files
+        handleVideoMetadata({
+            width: video.videoWidth,
+            height: video.videoHeight,
+            naturalWidth: video.videoWidth,
+            naturalHeight: video.videoHeight
+        });
       };
       setVideoUrlInput(''); // Clear URL input
     } else {
@@ -212,10 +232,11 @@ function Upload() {
         if (backendPreviewUrl) {
           // If the backend provides a new preview URL, use it.
           setVideoSrc(backendPreviewUrl);
+          // For URL-based videos, metadata will be fetched by VideoPlayer's onMetadataLoaded
         } else if (videoSrcPriorToAnalysis && videoSrcPriorToAnalysis.startsWith('blob:')) {
           // If backend didn't provide a preview URL, but we had a local blob preview captured
           // before the /analyze call, ensure videoSrc is set to this captured blob URL.
-          // This handles cases where videoSrc might have been inadvertently changed during awaits.
+          // Metadata for local files is already handled in handleFileChange/handleDrop
           setVideoSrc(videoSrcPriorToAnalysis);
         } else {
           // If backend didn't provide a preview URL AND there was no prior blob preview (e.g. from URL input path)
@@ -271,6 +292,53 @@ function Upload() {
 
   const handleTrimChange = ({ start, end }) => {
     setTrim({ start, end });
+  };
+
+  // Callback for VideoPlayer to report its dimensions
+  const handleVideoMetadata = useCallback(({ width, height, naturalWidth, naturalHeight }) => {
+    setVideoPreviewDimensions({ width, height, naturalWidth, naturalHeight });
+    // Initialize or adjust selectionRect based on new video dimensions if needed
+    // For example, set a default crop or ensure existing crop is valid
+    const initialSelectionWidth = naturalWidth / 4;
+    const initialSelectionHeight = naturalHeight / 4;
+    const initialX = (naturalWidth - initialSelectionWidth) / 2;
+    const initialY = (naturalHeight - initialSelectionHeight) / 2;
+    
+    // Update selectionRect, potentially preserving parts of old selection if dimensions match
+    // This part might need more sophisticated logic based on desired UX when video changes
+    setSelectionRect(currentSelection => ({
+        x: initialX,
+        y: initialY,
+        width: initialSelectionWidth,
+        height: initialSelectionHeight,
+        // Store natural dimensions with selection for context, useful for scaling
+        selectionNaturalWidth: naturalWidth, 
+        selectionNaturalHeight: naturalHeight 
+    }));
+
+    // Update numerical inputs as well, only if they haven't been manually set or if visual cropper is active
+    if (cropX === null || showVisualCropper) {
+        setCropX(Math.round(initialX));
+    }
+    if (cropY === null || showVisualCropper) {
+        setCropY(Math.round(initialY));
+    }
+    if (cropW === null || showVisualCropper) {
+        setCropW(Math.round(initialSelectionWidth));
+    }
+    if (cropH === null || showVisualCropper) {
+        setCropH(Math.round(initialSelectionHeight));
+    }
+  }, [cropX, cropY, cropW, cropH, showVisualCropper]); // Dependencies for useCallback
+
+  // This function would be called by the visual cropper component when the selection changes
+  const handleVisualCropChange = (newRect) => {
+    // newRect should contain x, y, width, height in pixels relative to the original video dimensions
+    setCropX(Math.round(newRect.x));
+    setCropY(Math.round(newRect.y));
+    setCropW(Math.round(newRect.width));
+    setCropH(Math.round(newRect.height));
+    setSelectionRect(newRect); // Keep visual selection in sync if it's different from original scale
   };
 
   const fontStyleOptions = ["Arial", "Times New Roman", "Courier New", "Verdana", "Georgia", "Comic Sans MS"];
@@ -378,7 +446,54 @@ function Upload() {
         </Button>
       </VStack>
 
-      {videoSrc && !gifUrl && <VideoPlayer src={videoSrc} />}
+      {/* Video Preview Area - show if videoSrc is available and no GIF is generated, OR if visual cropper is active */}
+      {(videoSrc && !gifUrl && !showVisualCropper) && <VideoPlayer src={videoSrc} onMetadataLoaded={handleVideoMetadata} />}
+
+      {showVisualCropper && videoSrc && videoPreviewDimensions.naturalWidth > 0 && (
+        <Box my={4} p={4} borderWidth="1px" borderRadius="lg" borderColor="blue.500">
+            <Heading size="md" mb={2}>Visual Crop</Heading>
+            <Text mb={2}>Video Dimensions: {videoPreviewDimensions.naturalWidth}x{videoPreviewDimensions.naturalHeight} (Original)</Text>
+            <Text mb={4}>Displayed Preview Dimensions: {videoPreviewDimensions.width}x{videoPreviewDimensions.height}</Text>
+            {/* 
+              This is where you would integrate a visual cropping component.
+              It would receive `videoSrc`, `videoPreviewDimensions`, `selectionRect`, 
+              and call `handleVisualCropChange` on interaction.
+              Example: <VisualCropperComponent videoSrc={videoSrc} dimensions={videoPreviewDimensions} initialSelection={selectionRect} onSelectionChange={handleVisualCropChange} />
+            */}
+            <Box
+                position="relative"
+                width={`${videoPreviewDimensions.width}px`} // Match displayed video width
+                height={`${videoPreviewDimensions.height}px`} // Match displayed video height
+                mx="auto" // Center it
+                border="2px dashed gray"
+                overflow="hidden" // Important if video itself is larger than this box
+            >
+                <video
+                    src={videoSrc}
+                    style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain' }}
+                    controls={false} // No controls for the cropper background
+                    autoPlay={false}
+                    muted
+                />
+                {/* Placeholder for draggable selection box - to be replaced by a real component */}
+                <Box
+                    position="absolute"
+                    border="2px solid blue"
+                    bg="rgba(0,0,255,0.2)"
+                    style={{
+                        left: `${(selectionRect.x / videoPreviewDimensions.naturalWidth) * videoPreviewDimensions.width}px`,
+                        top: `${(selectionRect.y / videoPreviewDimensions.naturalHeight) * videoPreviewDimensions.height}px`,
+                        width: `${(selectionRect.width / videoPreviewDimensions.naturalWidth) * videoPreviewDimensions.width}px`,
+                        height: `${(selectionRect.height / videoPreviewDimensions.naturalHeight) * videoPreviewDimensions.height}px`,
+                        cursor: 'move', // Basic cursor
+                    }}
+                >
+                    <Text color="white" p={1} bg="blue.500" fontSize="xs">Drag/Resize Me (Placeholder)</Text>
+                </Box>
+            </Box>
+            <Text mt={2} fontSize="sm">Current Crop (Original Dims): X={cropX ?? 0}, Y={cropY ?? 0}, W={cropW ?? 0}, H={cropH ?? 0}</Text>
+        </Box>
+      )}
 
       {uploadedFilename && videoDuration > 0 && (
         <Box mt={10}>
@@ -386,7 +501,7 @@ function Upload() {
             Conversion Settings
           </Heading>
 
-          <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" mb={8} bg={settingsBoxBg}>
+          <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" mb={8} bg={settingsBoxBg} id="trim-section">
             <TrimSlider
               duration={videoDuration}
               value={trim} // Pass the trim state
@@ -396,7 +511,7 @@ function Upload() {
           </Box>
 
           <VStack spacing={8} align="stretch">
-            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg}>
+            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg} id="output-options-section">
               <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Output Options</Heading>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
                 <FormControl>
@@ -427,41 +542,49 @@ function Upload() {
               </FormControl>
             </Box>
 
-            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg}>
+            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg} id="crop-section">
               <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Crop Video (Optional)</Heading>
-              <Text fontSize="sm" color={labelColor} mb={4}>
-                Specify the top-left corner (X, Y) and the dimensions (Width, Height) for the crop.
-                Leave blank or 0 for no crop. Values are in pixels.
-              </Text>
+              <Button
+                onClick={() => setShowVisualCropper(!showVisualCropper)}
+                colorScheme={showVisualCropper ? "orange" : "blue"}
+                mb={4}
+                isDisabled={!videoSrc || videoPreviewDimensions.naturalWidth === 0}
+              >
+                {showVisualCropper ? "Hide Visual Cropper & Use Numerical Inputs" : "Visually Select Crop Area"}
+              </Button>
+              {!showVisualCropper && (
+                <Text fontSize="sm" color={labelColor} mb={4}>
+                  Specify crop numerically, or use the visual tool above. Values are in pixels relative to original video.
+                </Text>)}
               <SimpleGrid columns={{ base: 2, md: 4 }} spacing={6}>
                 <FormControl>
                   <FormLabel htmlFor="cropX" color={labelColor}>X</FormLabel>
-                  <NumberInput id="cropX" value={cropX ?? ''} min={0} onChange={(valStr, valNum) => setCropX(valStr === '' ? null : valNum)} placeholder="e.g., 10" focusBorderColor="blue.500">
+                  <NumberInput id="cropX" value={cropX ?? ''} min={0} onChange={(valStr, valNum) => setCropX(valStr === '' ? null : parseInt(valNum, 10))} placeholder="e.g., 10" focusBorderColor="blue.500">
                     <NumberInputField />
                   </NumberInput>
                 </FormControl>
                 <FormControl>
                   <FormLabel htmlFor="cropY" color={labelColor}>Y</FormLabel>
-                  <NumberInput id="cropY" value={cropY ?? ''} min={0} onChange={(valStr, valNum) => setCropY(valStr === '' ? null : valNum)} placeholder="e.g., 10" focusBorderColor="blue.500">
+                  <NumberInput id="cropY" value={cropY ?? ''} min={0} onChange={(valStr, valNum) => setCropY(valStr === '' ? null : parseInt(valNum, 10))} placeholder="e.g., 10" focusBorderColor="blue.500">
                     <NumberInputField />
                   </NumberInput>
                 </FormControl>
                 <FormControl>
                   <FormLabel htmlFor="cropW" color={labelColor}>Width</FormLabel>
-                  <NumberInput id="cropW" value={cropW ?? ''} min={0} onChange={(valStr, valNum) => setCropW(valStr === '' ? null : valNum)} placeholder="e.g., 640" focusBorderColor="blue.500">
+                  <NumberInput id="cropW" value={cropW ?? ''} min={0} onChange={(valStr, valNum) => setCropW(valStr === '' ? null : parseInt(valNum, 10))} placeholder="e.g., 640" focusBorderColor="blue.500">
                     <NumberInputField />
                   </NumberInput>
                 </FormControl>
                 <FormControl>
                   <FormLabel htmlFor="cropH" color={labelColor}>Height</FormLabel>
-                  <NumberInput id="cropH" value={cropH ?? ''} min={0} onChange={(valStr, valNum) => setCropH(valStr === '' ? null : valNum)} placeholder="e.g., 480" focusBorderColor="blue.500">
+                  <NumberInput id="cropH" value={cropH ?? ''} min={0} onChange={(valStr, valNum) => setCropH(valStr === '' ? null : parseInt(valNum, 10))} placeholder="e.g., 480" focusBorderColor="blue.500">
                     <NumberInputField />
                   </NumberInput>
                 </FormControl>
               </SimpleGrid>
             </Box>
 
-            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg}>
+            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg} id="text-overlay-section">
               <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Text Overlay</Heading>
               <VStack spacing={5} align="stretch">
                 <FormControl>
@@ -511,7 +634,7 @@ function Upload() {
               </VStack>
             </Box>
 
-            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg}>
+            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg} id="effects-section">
               <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Video Effects</Heading>
               <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} alignItems="center">
                 <FormControl>
@@ -557,7 +680,7 @@ function Upload() {
           <Box borderRadius="md" overflow="hidden">
             <Center>
               {includeAudio ? (
-                <VideoPlayer src={gifUrl} />
+                <VideoPlayer src={gifUrl} onMetadataLoaded={() => {}} /> // Pass dummy if not needed for result
               ) : (
                 <Image src={gifUrl} alt={`Converted ${includeAudio ? 'Video' : 'GIF'}`} maxW="full" borderRadius="md" />
               )}
