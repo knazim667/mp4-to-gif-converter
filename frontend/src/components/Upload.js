@@ -3,10 +3,12 @@ import axios from 'axios';
 import VideoPlayer from './VideoPlayer'; // Assuming you have this component
 import TrimSlider from './TrimSlider';   // Assuming you have this component
 import {
-  Box, Heading, Text, Button, Input, FormControl, FormLabel, Checkbox,
+  Box, Heading, Text, Button, Input, FormControl, FormLabel, Checkbox, HStack,
   SimpleGrid, Center, Image, Link, useColorModeValue, Select, VStack,
-  Alert, AlertIcon, AlertTitle, AlertDescription, CloseButton, Spinner
+  Alert, AlertIcon, AlertTitle, AlertDescription, CloseButton, Spinner,
+  NumberInput, NumberInputField, NumberInputStepper, NumberIncrementStepper, NumberDecrementStepper, Divider, Icon
 } from '@chakra-ui/react';
+import { FiUploadCloud } from 'react-icons/fi'; // Example icon
 
 function Upload() {
   // File and URL states
@@ -49,6 +51,11 @@ function Upload() {
   const dropZoneInitialBg = useColorModeValue('gray.50', 'gray.700'); // Initial bg for dropzone
   const selectedFileNameColor = useColorModeValue('blue.600', 'blue.300'); // Color for selected file name
   const gifResultBoxBg = useColorModeValue('gray.50', 'gray.700'); // BG for the GIF result box
+
+  // Hoisted color mode values previously used directly in JSX
+  const settingsBoxBg = useColorModeValue('white', 'gray.750');
+  const settingsHeadingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
+  const resultHeadingColor = useColorModeValue('purple.600', 'purple.300');
   // Cleanup for local video preview URL
   // This useEffect is responsible for revoking blob URLs when they are no longer needed.
   useEffect(() => {
@@ -219,8 +226,8 @@ function Upload() {
       return;
     }
     setIsLoading(true);
-    setMessage({ text: 'Converting to GIF...', type: 'info' });
-    setGifUrl(''); // Clear previous GIF
+    setMessage({ text: 'Converting...', type: 'info' }); // Generic "Converting..."
+    setGifUrl(''); // Clear previous GIF/video
 
     try {
       const response = await axios.post(`${process.env.REACT_APP_API_URL}/convert`, {
@@ -239,7 +246,8 @@ function Upload() {
         reverse: reverse,
         include_audio: includeAudio, // Send audio preference to backend
       });
-      setMessage({ text: `Success: Converted to ${response.data.filename}`, type: 'success' });
+      const outputType = includeAudio ? 'Video' : 'GIF';
+      setMessage({ text: `Success: Converted to ${outputType}. File: ${response.data.filename}`, type: 'success' });
       setGifUrl(response.data.url);
     } catch (error) {
       setMessage({ text: `Conversion failed: ${error.response?.data?.message || 'Server error'}`, type: 'error' });
@@ -251,31 +259,19 @@ function Upload() {
     setTrim({ start, end });
   };
 
-  const textColorOptions = ["white", "black", "red", "blue", "green", "yellow", "orange", "purple", "pink", "cyan"];
   const fontStyleOptions = ["Arial", "Times New Roman", "Courier New", "Verdana", "Georgia", "Comic Sans MS"];
-  const bgColorOptions = [
-    { value: '', label: 'None (Transparent)' },
-    { value: 'black', label: 'Black' },
-    { value: 'white', label: 'White' },
-    { value: 'gray', label: 'Gray' },
-    { value: 'red', label: 'Red' },
-    { value: 'blue', label: 'Blue' },
-    { value: 'green', label: 'Green' },
-    { value: '#80808080', label: 'Gray (Semi-Transparent)' }
-  ];
-  const textPositionOptions = ['center', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
   return (
     <Box bg={mainBg} borderRadius="xl" boxShadow="lg" p={{ base: 4, md: 8 }} color={mainText}>
-      <Heading as="h2" size="lg" mb={6} textAlign="center">
-        MP4 to GIF Converter
+      <Heading as="h2" size="xl" mb={8} textAlign="center" fontWeight="bold">
+        Video to GIF & MP4 Converter
       </Heading>
 
       {message.text && (
-        <Alert status={message.type} borderRadius="md" mb={4}>
+        <Alert status={message.type} borderRadius="md" mb={6} variant="subtle">
           <AlertIcon />
           <Box flex="1">
-            <AlertTitle mr={2}>
+            <AlertTitle mr={2} fontWeight="semibold">
               {message.type === 'success' ? 'Success!' : message.type === 'error' ? 'Error!' : 'Info'}
             </AlertTitle>
             <AlertDescription display="block">{message.text}</AlertDescription>
@@ -284,28 +280,30 @@ function Upload() {
         </Alert>
       )}
 
-      <VStack spacing={6} align="stretch">
+      <VStack spacing={6} align="stretch" mb={8}>
         <Box
           borderWidth={2}
           borderStyle="dashed"
           borderColor={isDragging ? dropZoneHoverBorder : borderColor}
           bg={isDragging ? dragActiveBg : dropZoneInitialBg}
           borderRadius="lg"
-          p={8}
+          p={{ base: 6, md: 10 }}
           textAlign="center"
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          _hover={{ borderColor: dropZoneHoverBorder }}
-          transition="all 0.3s"
+          _hover={{ borderColor: dropZoneHoverBorder, cursor: 'pointer' }}
+          transition="all 0.3s ease-in-out"
+          onClick={() => fileInputRef.current && fileInputRef.current.click()} // Make entire box clickable
         >
-          <Text color={labelColor} mb={4}>
+          <Icon as={FiUploadCloud} w={12} h={12} color={labelColor} mb={3} />
+          <Text color={labelColor} mb={4} fontSize="lg">
             {file ? (
               <Text as="span" fontWeight="medium" color={selectedFileNameColor}>
-                {file.name}
+                Selected: {file.name}
               </Text>
             ) : (
-              'Drag & drop your video here or click to select'
+              'Drag & drop your video here, or click to select'
             )}
           </Text>
           <Input
@@ -316,21 +314,27 @@ function Upload() {
             display="none"
             id="fileInput"
           />
-          <Button as="label" htmlFor="fileInput" colorScheme="blue" size="md" cursor="pointer">
-            Select Video File
+          <Button variant="outline" colorScheme="blue" size="md" onClick={(e) => { e.stopPropagation(); fileInputRef.current && fileInputRef.current.click(); }}>
+            {file ? 'Change Video' : 'Select Video File'}
           </Button>
         </Box>
 
-        <Text textAlign="center" my={2} color={labelColor} fontWeight="medium">OR</Text>
+        <HStack align="center" spacing={4}>
+            <Divider borderColor={borderColor} />
+            <Text textAlign="center" color={labelColor} fontWeight="medium" whiteSpace="nowrap">
+                OR
+            </Text>
+            <Divider borderColor={borderColor} />
+        </HStack>
 
         <FormControl id="videoUrlControl">
-          <FormLabel htmlFor="videoUrlInput" fontSize="sm" color={labelColor}>
+          <FormLabel htmlFor="videoUrlInput" fontSize="sm" color={labelColor} fontWeight="medium">
             Enter Video URL
           </FormLabel>
           <Input
             id="videoUrlInput"
             type="url"
-            placeholder="e.g., https://example.com/video.mp4"
+            placeholder="e.g., https://example.com/video.mp4 or YouTube link"
             value={videoUrlInput}
             onChange={(e) => {
               setVideoUrlInput(e.target.value);
@@ -338,11 +342,11 @@ function Upload() {
                 setFile(null);
                 if (fileInputRef.current) fileInputRef.current.value = '';
                 resetConversionStates();
-                // videoSrc is intentionally not cleared here to keep local preview if user is just typing in URL field
                 setUploadedFilename('');
               }
             }}
             focusBorderColor="blue.500"
+            size="lg"
           />
         </FormControl>
 
@@ -352,133 +356,169 @@ function Upload() {
           colorScheme="green"
           size="lg"
           w="full"
-          isLoading={isLoading && !gifUrl} // Show spinner only during initial processing
-          spinner={<Spinner size="sm" />}
+          isLoading={isLoading && !gifUrl && !uploadedFilename} // Show spinner only during initial processing
+          spinner={<Spinner size="md" />}
+          leftIcon={isLoading && !gifUrl && !uploadedFilename ? undefined : <Icon as={FiUploadCloud} />}
         >
-          {isLoading && !gifUrl ? 'Processing...' : 'Process Video'}
+          {isLoading && !gifUrl && !uploadedFilename ? 'Processing...' : 'Process Video'}
         </Button>
       </VStack>
 
       {videoSrc && !gifUrl && <VideoPlayer src={videoSrc} />}
 
       {uploadedFilename && videoDuration > 0 && (
-        <Box mt={8}>
-          <Heading as="h3" size="md" mb={4}>
-            GIF Settings
+        <Box mt={10}>
+          <Heading as="h3" size="lg" mb={6} textAlign="center" borderBottomWidth="2px" borderColor={borderColor} pb={3}>
+            Conversion Settings
           </Heading>
-          <TrimSlider duration={videoDuration} scenes={scenePoints} onTrimChange={handleTrimChange} />
-          
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mt={6}>
-            <FormControl>
-              <FormLabel htmlFor="fpsInput" fontSize="sm" color={labelColor}>Frames Per Second</FormLabel>
-              <Input id="fpsInput" type="number" value={fps} onChange={(e) => setFps(Number(e.target.value))} min="1" max="60" focusBorderColor="blue.500" />
-            </FormControl>
-            <FormControl>
-              <FormLabel htmlFor="widthInput" fontSize="sm" color={labelColor}>Width (px)</FormLabel>
-              <Input id="widthInput" type="number" value={width} onChange={(e) => setWidth(Number(e.target.value))} min="100" max="1280" focusBorderColor="blue.500" />
-            </FormControl>
-          </SimpleGrid>
 
-          <FormControl mt={4}>
-            <FormLabel htmlFor="textOverlayInput" fontSize="sm" color={labelColor}>Text Overlay</FormLabel>
-            <Input id="textOverlayInput" value={textOverlay} onChange={(e) => setTextOverlay(e.target.value)} placeholder="Enter text" focusBorderColor="blue.500" />
-          </FormControl>
+          <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" mb={8} bg={settingsBoxBg}>
+            <TrimSlider
+              duration={videoDuration}
+              value={trim} // Pass the trim state
+              onTrimChange={handleTrimChange} // Use the updated handler
+              scenes={scenePoints}
+            />
+          </Box>
+          <VStack spacing={8} align="stretch">
+            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg}>
+              <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Output Options</Heading>
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                <FormControl>
+                  <FormLabel htmlFor="fps" color={labelColor}>FPS (Frames Per Second)</FormLabel>
+                  <NumberInput id="fps" value={fps} min={1} max={60} onChange={(valStr, valNum) => setFps(valNum)} focusBorderColor="blue.500">
+                    <NumberInputField />
+                    <NumberInputStepper>
+                      <NumberIncrementStepper />
+                      <NumberDecrementStepper />
+                    </NumberInputStepper>
+                  </NumberInput>
+                </FormControl>
+                <FormControl>
+                  <FormLabel htmlFor="width" color={labelColor}>Output Width (pixels)</FormLabel>
+                  <NumberInput id="width" value={width} min={100} max={1920} step={10} onChange={(valStr, valNum) => setWidth(valNum)} focusBorderColor="blue.500">
+                    <NumberInputField />
+                    <NumberInputStepper>
+                      <NumberIncrementStepper />
+                      <NumberDecrementStepper />
+                    </NumberInputStepper>
+                  </NumberInput>
+                </FormControl>
+              </SimpleGrid>
+              <FormControl display="flex" alignItems="center" mt={8}>
+                <Checkbox id="includeAudioCheckbox" isChecked={includeAudio} onChange={(e) => setIncludeAudio(e.target.checked)} size="lg" colorScheme="green">
+                  Include Audio (outputs as short video, e.g., MP4)
+                </Checkbox>
+              </FormControl>
+            </Box>
 
-          <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4} mt={4}>
-            <FormControl>
-              <FormLabel htmlFor="textColorSelect" fontSize="sm" color={labelColor}>Text Color</FormLabel>
-              <Select id="textColorSelect" value={textColor} onChange={(e) => setTextColor(e.target.value)} focusBorderColor="blue.500">
-                {textColorOptions.map((color) => (
-                  <option key={color} value={color} style={{ textTransform: 'capitalize' }}>{color}</option>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl>
-              <FormLabel htmlFor="fontStyleSelect" fontSize="sm" color={labelColor}>Font Style</FormLabel>
-              <Select id="fontStyleSelect" value={fontStyle} onChange={(e) => setFontStyle(e.target.value)} focusBorderColor="blue.500">
-                {fontStyleOptions.map((font) => (
-                  <option key={font} value={font}>{font}</option>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl>
-              <FormLabel htmlFor="textBgColorSelect" fontSize="sm" color={labelColor}>Text Background Color</FormLabel>
-              <Select id="textBgColorSelect" value={textBgColor} onChange={(e) => setTextBgColor(e.target.value)} focusBorderColor="blue.500">
-                {bgColorOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </Select>
-            </FormControl>
-          </SimpleGrid>
+            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg}>
+              <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Text Overlay</Heading>
+              <VStack spacing={5} align="stretch">
+                <FormControl>
+                  <FormLabel htmlFor="textOverlay" color={labelColor}>Text</FormLabel>
+                  <Input id="textOverlay" placeholder="Enter text to overlay" value={textOverlay} onChange={(e) => setTextOverlay(e.target.value)} focusBorderColor="blue.500" />
+                </FormControl>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                  <FormControl>
+                    <FormLabel htmlFor="fontSize" color={labelColor}>Font Size</FormLabel>
+                    <NumberInput id="fontSize" value={fontSize} min={8} max={100} onChange={(valStr, valNum) => setFontSize(valNum)} focusBorderColor="blue.500">
+                      <NumberInputField />
+                      <NumberInputStepper>
+                        <NumberIncrementStepper />
+                        <NumberDecrementStepper />
+                      </NumberInputStepper>
+                    </NumberInput>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel htmlFor="fontStyle" color={labelColor}>Font Style</FormLabel>
+                    <Select id="fontStyle" value={fontStyle} onChange={(e) => setFontStyle(e.target.value)} focusBorderColor="blue.500">
+                      {fontStyleOptions.map((font) => (
+                        <option key={font} value={font}>{font}</option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </SimpleGrid>
+                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                  <FormControl>
+                    <FormLabel htmlFor="textColor" color={labelColor}>Text Color</FormLabel>
+                    <Input id="textColor" type="text" placeholder="e.g., white or #FFFFFF" value={textColor} onChange={(e) => setTextColor(e.target.value)} focusBorderColor="blue.500" />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel htmlFor="textBgColor" color={labelColor}>Text Background Color (optional)</FormLabel>
+                    <Input id="textBgColor" type="text" placeholder="e.g., black or #00000080" value={textBgColor} onChange={(e) => setTextBgColor(e.target.value)} focusBorderColor="blue.500" />
+                  </FormControl>
+                </SimpleGrid>
+                <FormControl>
+                  <FormLabel htmlFor="textPosition" color={labelColor}>Text Position</FormLabel>
+                  <Select id="textPosition" value={textPosition} onChange={(e) => setTextPosition(e.target.value)} focusBorderColor="blue.500">
+                    <option value="center">Center</option>
+                    <option value="top-left">Top Left</option>
+                    <option value="top-right">Top Right</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-right">Bottom Right</option>
+                  </Select>
+                </FormControl>
+              </VStack>
+            </Box>
 
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mt={4}>
-            <FormControl>
-              <FormLabel htmlFor="fontSizeInput" fontSize="sm" color={labelColor}>Font Size</FormLabel>
-              <Input id="fontSizeInput" type="number" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} min="8" max="72" focusBorderColor="blue.500" />
-            </FormControl>
-            <FormControl>
-              <FormLabel htmlFor="textPositionSelect" fontSize="sm" color={labelColor}>Text Position</FormLabel>
-              <Select id="textPositionSelect" value={textPosition} onChange={(e) => setTextPosition(e.target.value)} focusBorderColor="blue.500">
-                {textPositionOptions.map((pos) => (
-                  <option key={pos} value={pos} style={{ textTransform: 'capitalize' }}>{pos.replace('-', ' ')}</option>
-                ))}
-              </Select>
-            </FormControl>
-          </SimpleGrid>
+            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg}>
+              <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Video Effects</Heading>
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} alignItems="center">
+                <FormControl>
+                  <FormLabel htmlFor="speedFactor" color={labelColor}>Speed Factor</FormLabel>
+                  <NumberInput id="speedFactor" value={speedFactor} min={0.1} max={5.0} step={0.1} precision={1} onChange={(valStr, valNum) => setSpeedFactor(parseFloat(valNum) || 1.0)} focusBorderColor="blue.500">
+                    <NumberInputField />
+                    <NumberInputStepper>
+                      <NumberIncrementStepper />
+                      <NumberDecrementStepper />
+                    </NumberInputStepper>
+                  </NumberInput>
+                </FormControl>
+                <FormControl display="flex" alignItems="center" pt={{ md: "32px" }}> {/* Align checkbox with label better */}
+                  <Checkbox id="reverseCheckbox" isChecked={reverse} onChange={(e) => setReverse(e.target.checked)} size="lg" colorScheme="orange">
+                    Reverse Video
+                  </Checkbox>
+                </FormControl>
+              </SimpleGrid>
+            </Box>
+          </VStack>
 
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4} mt={4}>
-            <FormControl>
-              <FormLabel htmlFor="speedFactorInput" fontSize="sm" color={labelColor}>Playback Speed</FormLabel>
-              <Input id="speedFactorInput" type="number" step="0.1" min="0.1" max="5.0" value={speedFactor} onChange={(e) => setSpeedFactor(parseFloat(e.target.value) || 1.0)} focusBorderColor="blue.500" />
-            </FormControl>
-            <FormControl display="flex" alignItems="center" justifyContent={{ base: 'flex-start', md: 'center' }} pt={{ base: 2, md: 8 }}>
-              <Checkbox id="reverseCheckbox" isChecked={reverse} onChange={(e) => setReverse(e.target.checked)}>
-                Reverse Playback
-              </Checkbox>
-            </FormControl>
-          </SimpleGrid>
+          <Divider my={10} />
 
-          <FormControl display="flex" alignItems="center" mt={4}>
-            <Checkbox id="includeAudioCheckbox" isChecked={includeAudio} onChange={(e) => setIncludeAudio(e.target.checked)}>
-              Include Audio (outputs as short video e.g., MP4)
-            </Checkbox>
-          </FormControl>
           <Button
             onClick={handleConvert}
             colorScheme="purple"
             size="lg"
             w="full"
-            mt={8}
             isLoading={isLoading && !!uploadedFilename && !gifUrl} // Show spinner only during conversion
-            spinner={<Spinner size="sm" />}
+            spinner={<Spinner size="md" />}
+            leftIcon={isLoading && !!uploadedFilename && !gifUrl ? undefined : <Icon as={FiUploadCloud} transform="rotate(90deg)" />} // Example icon
           >
-            {isLoading && !!uploadedFilename && !gifUrl ? 'Converting...' : 'Convert to GIF'}
+            {isLoading && !!uploadedFilename && !gifUrl ? 'Converting...' : `Convert to ${includeAudio ? 'MP4' : 'GIF'}`}
           </Button>
         </Box>
       )}
 
       {gifUrl && (
-        <Box mt={8}>
-          <Heading as="h3" size="md" mb={4}>
+        <Box mt={10} p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="xl" bg={gifResultBoxBg}>
+          <Heading as="h3" size="lg" mb={6} textAlign="center" color={resultHeadingColor}>
             Your {includeAudio ? 'Video' : 'GIF'} is Ready!
           </Heading>
-          <Box bg={gifResultBoxBg} borderRadius="lg" p={4}>
+          <Box borderRadius="md" overflow="hidden">
             <Center>
               {includeAudio ? (
-                // If audio is included, use VideoPlayer for the output (likely MP4)
-                // The 'gifUrl' state would now hold the URL to the video file
                 <VideoPlayer src={gifUrl} />
               ) : (
-                // Otherwise, display as an image (standard GIF)
-                <Image src={gifUrl} alt="Converted GIF" maxW="full" borderRadius="md" />
+                <Image src={gifUrl} alt={`Converted ${includeAudio ? 'Video' : 'GIF'}`} maxW="full" borderRadius="md" />
               )}
             </Center>
-            <Link href={gifUrl} download isExternal _hover={{textDecoration: 'none'}}>
-              <Button colorScheme="teal" size="lg" w="full" mt={4}>
-                Download {includeAudio ? 'Video' : 'GIF'}
-              </Button>
-            </Link>
           </Box>
+          <Link href={gifUrl} download isExternal _hover={{textDecoration: 'none'}}>
+            <Button colorScheme="teal" size="lg" w="full" mt={6} leftIcon={<Icon as={FiUploadCloud} transform="rotate(180deg)" />}>
+              Download {includeAudio ? 'Video' : 'GIF'}
+            </Button>
+          </Link>
         </Box>
       )}
     </Box>
