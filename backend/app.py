@@ -10,13 +10,13 @@ import uuid  # For generating unique filenames
 
 from dotenv import load_dotenv
 import logging
-from utils.video_processing import process_video_output  # Updated import
+from utils.video_processing import process_video_output
 from utils.ai_trimming import detect_scenes
 
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app, resources={r"/*": {
-    "origins": ["http://localhost:3000", "http://192.168.12.238:3000"],
+    "origins": ["http://localhost:3000", "http://192.168.12.238:3000"], # Add other origins as needed
     "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
     "allow_headers": ["Content-Type", "Authorization"]
 }})
@@ -260,7 +260,13 @@ def convert_file_route():
         text_bg_color = data.get('text_bg_color')
         speed_factor = data.get('speed_factor', 1.0)
         reverse = data.get('reverse', False)
-        include_audio = data.get('include_audio', False) # New parameter
+        include_audio = data.get('include_audio', False)
+        # Crop parameters
+        crop_x = data.get('crop_x')
+        crop_y = data.get('crop_y')
+        crop_w = data.get('crop_w')
+        crop_h = data.get('crop_h')
+
 
         if not s3_input_filename:
             return jsonify({'status': 'error', 'message': 'Filename required for conversion'}), 400
@@ -275,12 +281,20 @@ def convert_file_route():
         s3.download_file(S3_BUCKET_NAME, s3_input_filename, temp_input_filename)
         logger.info(f"Downloaded {s3_input_filename} from S3 to {temp_input_filename} for conversion")
 
-        process_video_output( # Use the renamed function
+        crop_params = None
+        if crop_x is not None and crop_y is not None and crop_w is not None and crop_h is not None:
+            if crop_w > 0 and crop_h > 0: # Basic validation
+                crop_params = {'x1': crop_x, 'y1': crop_y, 'width': crop_w, 'height': crop_h}
+            else:
+                logger.warning(f"Invalid crop dimensions received: W={crop_w}, H={crop_h}. Ignoring crop.")
+
+        process_video_output(
             input_path=temp_input_filename, output_path=local_temp_output_path,
             fps=fps, width=width, start=start, end=end, text=text,
             font_size=font_size, text_position=text_position, text_color=text_color,
             font_style=font_style, text_bg_color=text_bg_color,
-            speed_factor=speed_factor, reverse=reverse, include_audio=include_audio # Pass include_audio
+            speed_factor=speed_factor, reverse=reverse, include_audio=include_audio,
+            crop_params=crop_params # Pass crop parameters
         )
 
         content_type = 'video/mp4' if include_audio else 'image/gif'

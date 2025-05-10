@@ -1,138 +1,292 @@
 import os
-from moviepy import VideoFileClip, TextClip, CompositeVideoClip
-import logging
-import moviepy.config as mp_config
-# Import the main effects module
-# import moviepy.video.fx.all as vfx # Not needed if using fl_time for reverse
+# For MoviePy 2.x, moviepy.editor is still the primary way to import.
+from moviepy import (VideoFileClip, TextClip, CompositeVideoClip,
+                            concatenate_videoclips)
+from moviepy import vfx # Import the effects module for speedx, time_mirror, resize
+# Effect classes like Crop, Resize, TimeMirror are available via vfx in MoviePy 2.x
 
-# Set the ImageMagick binary path for your system
-mp_config.IMAGEMAGICK_BINARY = "/opt/homebrew/bin/magick"
+import logging
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-def process_video_output(input_path, output_path, fps=10, width=320, height=None, start=None, end=None, text=None, font_size=20, text_position='center', text_color='white', font_style='Arial', text_bg_color=None, speed_factor=1.0, reverse=False, include_audio=False):
+def process_video_output(input_path, output_path, fps=10, width=320, height=None,
+                         start=None, end=None, text=None, font_size=20,
+                         text_position='center', text_color='white', font_style='Arial',
+                         text_bg_color=None, speed_factor=1.0, reverse=False,
+                         include_audio=False, crop_params=None):
     """
-    Process a video file to GIF or MP4 with optional trimming, text overlay, speed, and reverse using MoviePy.
+    Process a video file to GIF or MP4 with optional trimming, text overlay, speed, and reverse using MoviePy 2.x.
     The output format is determined by the extension of output_path.
     If include_audio is True and output_path ends with .mp4, audio will be included.
 
     Args:
         input_path (str): Path to the input video file.
-        output_path (str): Path where the GIF will be saved.
-        fps (int): Frames per second for the output GIF (default: 10).
-        width (int): Width of the output GIF in pixels (default: 320).
-        height (int, optional): Height of the output GIF in pixels; if None, maintains aspect ratio.
+        output_path (str): Path where the output file will be saved.
+        fps (int): Frames per second for the output (default: 10 for GIF, original for MP4).
+        width (int, optional): Width of the output file in pixels. If None and height is None, no resize.
+                               If one is None, it's calculated to maintain aspect ratio. (default: 320)
+        height (int, optional): Height of the output file in pixels. If None, calculated to maintain aspect ratio.
         start (float, optional): Start time for trimming in seconds.
         end (float, optional): End time for trimming in seconds.
-        text (str, optional): Text to overlay on the GIF.
-        font_size (int): Font size for the text (default: 20).
-        text_position (str): Position of the text ('center', 'top-left', 'top-right', 'bottom-left', 'bottom-right').
-        text_color (str): Text color (e.g., 'white', '#FF0000') (default: 'white').
-        font_style (str): Font family for the text (e.g., 'Arial') (default: 'Arial').
-        text_bg_color (str, optional): Background color for the text (e.g., 'black', '#80808080'); None for transparent.
+        text (str, optional): Text to overlay on the video.
+        font_size (int): Font size for the text overlay (default: 20).
+        text_position (str or tuple): Position of the text overlay
+                                      (e.g., 'center', ('left', 'top'), (50, 100)) (default: 'center').
+        text_color (str): Color of the text overlay (default: 'white').
+        font_style (str): Font name or path for the text overlay (default: 'Arial').
+                               Ensure the font is available to MoviePy/ImageMagick.
+        text_bg_color (str, optional): Background color for the text (e.g., 'black', '#80808080');
+                                       None for transparent (default: None).
         speed_factor (float): Factor to change playback speed (e.g., 2.0 for 2x speed, 0.5 for half speed) (default: 1.0).
-        reverse (bool): Whether to play the GIF in reverse (default: False).
+        reverse (bool): Whether to play the video in reverse (default: False).
         include_audio (bool): Whether to include audio if the output is MP4 (default: False).
+        crop_params (dict, optional): Cropping parameters {'x1': int, 'y1': int, 'width': int, 'height': int}.
+                                      Coordinates are from top-left.
 
     Returns:
         str: Path to the generated output file.
 
     Raises:
-        Exception: If conversion fails due to invalid input or processing errors.
+        ValueError: If input parameters are invalid (e.g., start >= end, unsupported format).
+        Exception: If conversion fails due to processing errors.
     """
+    if not os.path.exists(input_path):
+        logger.error(f"Input file not found: {input_path}")
+        raise FileNotFoundError(f"Input file not found: {input_path}")
+
+    processed_clip = None # To ensure we operate on the latest version of the clip
+
     try:
-        # Load the video clip
-        # Load with audio by default, MoviePy handles it if present.
-        clip = VideoFileClip(input_path, audio=True)
-        logger.info(f"Loaded video clip from {input_path}, duration: {clip.duration}")
+        with VideoFileClip(input_path, audio=True) as loaded_clip:
+            processed_clip = loaded_clip # Start with the loaded clip
+            logger.info(f"Loaded video clip from {input_path}, duration: {processed_clip.duration:.2f}s, size: {processed_clip.size}")
 
-        # Trim the clip if start or end times are specified
-        if start is not None or end is not None:
-            clip = clip.subclipped(start, end)
-            logger.info(f"Trimmed clip to start: {start}, end: {end}")
+            # Trim the clip if start or end times are specified
+            if start is not None or end is not None:
+                start_time = start if start is not None else 0
+                end_time = end if end is not None else processed_clip.duration
 
-        # Resize the clip
-        if height is not None:
-            clip = clip.resized((width, height))
-            logger.info(f"Resized clip to width: {width}, height: {height}")
-        else:
-            clip = clip.resized(width=width)
-            logger.info(f"Resized clip to width: {width}, maintaining aspect ratio")
+                if start_time < 0:
+                    logger.warning(f"Start time {start_time}s is negative, using 0s.")
+                    start_time = 0
+                if end_time > processed_clip.duration:
+                    logger.warning(f"End time {end_time}s exceeds video duration {processed_clip.duration:.2f}s. Trimming to video end.")
+                    end_time = processed_clip.duration
+                if start_time >= end_time:
+                    logger.error(f"Start time ({start_time}s) must be less than end time ({end_time}s) for trimming.")
+                    raise ValueError("Start time must be less than end time for trimming.")
 
-        # Apply speed change if factor is not 1.0
-        if speed_factor != 1.0:
-            clip = clip.with_speed_scaled(factor=speed_factor) # Use the built-in method
-            logger.info(f"Applied speed factor: {speed_factor}")
+                processed_clip = processed_clip.subclipped(start_time, end_time) # MOVIEPY 2.x: subclipped
+                logger.info(f"Trimmed clip to start: {start_time:.2f}s, end: {end_time:.2f}s. New duration: {processed_clip.duration:.2f}s")
 
-        # Apply reverse effect if requested
-        if reverse:
-            if clip.duration is None:
-                logger.error("Cannot reverse a clip with an unknown duration.")
-                raise ValueError("Clip duration must be known to reverse it.")
-            clip = clip[::-1] # Reverse the clip using slicing
-            logger.info("Applied reverse effect")
+            # Apply crop if parameters are provided
+            # .crop() method is generally consistent in MoviePy 2.x
+            if crop_params and all(k in crop_params for k in ['x1', 'y1', 'width', 'height']):
+                try:
+                    x1, y1, w, h = crop_params['x1'], crop_params['y1'], crop_params['width'], crop_params['height']
+                    # Validate crop parameters against the current clip dimensions
+                    if w > 0 and h > 0 and \
+                       x1 >= 0 and y1 >= 0 and \
+                       (x1 + w) <= processed_clip.w and \
+                       (y1 + h) <= processed_clip.h:
+                        # MOVIEPY 2.x: Use with_effects and instantiate the Crop class
+                        # Crop class takes x1, y1, x2, y2 or combinations with width/height
+                        # We have x1, y1, width, height, so we can calculate x2, y2
+                        # The vfx.Crop class can handle x1, y1, width, height
+                        crop_instance = vfx.Crop(x1=x1, y1=y1, width=w, height=h)
+                        processed_clip = processed_clip.with_effects([crop_instance])
+                        logger.info(f"Applied crop: x1={x1}, y1={y1}, width={w}, height={h}. New size: {processed_clip.size}")
+                    else:
+                        logger.warning(f"Invalid crop parameters or crop area exceeds video dimensions. Original: {processed_clip.size}, Crop: x1={x1}, y1={y1}, w={w}, h={h}. Skipping crop.")
+                except Exception as crop_e:
+                    logger.error(f"Error during cropping: {crop_e}. Skipping crop.", exc_info=True)
 
-        # Add text overlay if provided
-        if text:
-            txt_clip = TextClip(
-                text=text,
-                font_size=font_size,
-                color=text_color,
-                bg_color=text_bg_color if text_bg_color else None,
-                font=font_style,
-                stroke_color='black',
-                stroke_width=1
-            )
-            # Define text position mapping
-            position_map = {
-                'center': 'center',
-                'top-left': (10, 10),
-                'top-right': ('right', 10),
-                'bottom-left': (10, 'bottom'),
-                'bottom-right': ('right', 'bottom')
-            }
-            position = position_map.get(text_position.lower(), 'center')
-            txt_clip = txt_clip.with_position(position).with_duration(clip.duration)
-            clip = CompositeVideoClip([clip, txt_clip])
-            logger.info(f"Applied text overlay: '{text}' at position {text_position}")
+            # Apply speed factor
+            if speed_factor != 1.0:
+                # MOVIEPY 2.x: Use fx method with vfx.speedx
+                processed_clip = processed_clip.with_speed_scaled(factor=speed_factor)
+                logger.info(f"Applied speed factor: {speed_factor}. New duration: {processed_clip.duration:.2f}s")
 
-        # Write the output file based on output_path extension
-        output_is_gif = output_path.lower().endswith('.gif')
+            # Apply reverse
+            if reverse:
+                if processed_clip.duration is None:
+                    logger.error("Cannot reverse a clip with an unknown duration.")
+                    raise ValueError("Clip duration must be known to reverse it.")
+                # MOVIEPY 2.x: Use with_effects and instantiate the TimeMirror class via vfx
+                processed_clip = processed_clip.with_effects([vfx.TimeMirror()])
+                logger.info("Applied reverse effect using vfx.TimeMirror")
 
-        if output_is_gif:
-            # For GIF, audio is not supported.
-            final_clip_for_output = clip.without_audio() if clip.audio else clip
-            final_clip_for_output.write_gif(output_path, fps=fps)
-            logger.info(f"Successfully generated GIF: {output_path}")
-        elif output_path.lower().endswith('.mp4'):
-            if include_audio:
-                if clip.audio is None:
-                    logger.warning(f"Audio inclusion requested for MP4, but processed clip has no audio. Writing video without audio. Original: {input_path}")
-                    clip.write_videofile(output_path, codec='libx264', audio=False, fps=clip.fps or fps)
+
+            # Resize the clip
+            if width is not None and height is not None:
+                # MOVIEPY 2.x: Use with_effects and instantiate the Resize class via vfx
+                processed_clip = processed_clip.with_effects([vfx.Resize((width, height))])
+                logger.info(f"Resized clip to width: {width}, height: {height}")
+            elif width is not None:
+                processed_clip = processed_clip.with_effects([vfx.Resize(width=width)])
+                logger.info(f"Resized clip to width: {width}, maintaining aspect ratio. New size: {processed_clip.size}")
+            elif height is not None:
+                processed_clip = processed_clip.with_effects([vfx.Resize(height=height)])
+                logger.info(f"Resized clip to height: {height}, maintaining aspect ratio. New size: {processed_clip.size}")
+
+
+            # Add text overlay if specified
+            if text:
+                position_map = {
+                    'center': 'center', 'top-left': ('left', 'top'), 'top-center': ('center', 'top'),
+                    'top-right': ('right', 'top'), 'center-left': ('left', 'center'),
+                    'center-right': ('right', 'center'), 'bottom-left': ('left', 'bottom'),
+                    'bottom-center': ('center', 'bottom'), 'bottom-right': ('right', 'bottom')
+                }
+                resolved_position = position_map.get(text_position.lower().replace(" ", ""), text_position)
+
+                try:
+                    txt_clip = TextClip(
+                        txt=text, fontsize=font_size, color=text_color,
+                        font=font_style, bg_color=text_bg_color if text_bg_color else 'transparent'
+                    )
+                    # MOVIEPY 2.x: with_position and with_duration
+                    txt_clip = txt_clip.with_position(resolved_position).with_duration(processed_clip.duration)
+                    processed_clip = CompositeVideoClip([processed_clip, txt_clip])
+                    logger.info(f"Applied text overlay: '{text}' at position {resolved_position}")
+                except Exception as text_e:
+                    logger.error(f"Failed to create text clip for '{text}' with font '{font_style}'. Error: {text_e}. Skipping text overlay.", exc_info=True)
+                    logger.warning("Common causes for text errors: Font not found or ImageMagick not configured correctly. Try a common font name like 'Arial', 'Verdana' or provide a path to a .ttf file.")
+
+            output_fps = fps
+            if output_path.lower().endswith('.mp4') and processed_clip.fps:
+                output_fps = processed_clip.fps
+
+            output_is_gif = output_path.lower().endswith('.gif')
+            output_is_mp4 = output_path.lower().endswith('.mp4')
+
+            if output_is_gif:
+                # .without_audio() should be consistent
+                final_clip_for_output = processed_clip.without_audio() if processed_clip.audio else processed_clip
+                logger.info(f"Writing GIF to {output_path} with FPS={output_fps}")
+                final_clip_for_output.write_gif(output_path, fps=output_fps)
+            elif output_is_mp4:
+                write_kwargs = {'codec': 'libx264', 'fps': output_fps}
+                if include_audio:
+                    if processed_clip.audio:
+                        write_kwargs['audio_codec'] = 'aac'
+                        write_kwargs['audio'] = True
+                        logger.info(f"Writing MP4 with audio to {output_path} with FPS={output_fps:.2f}")
+                    else:
+                        logger.warning(f"Audio inclusion requested for MP4, but processed clip has no audio. Writing video without audio to {output_path}.")
+                        write_kwargs['audio'] = False
                 else:
-                    # Write MP4 with audio
-                    clip.write_videofile(output_path, codec='libx264', audio_codec='aac', fps=clip.fps or fps)
-                    logger.info(f"Successfully generated MP4 with audio: {output_path}")
+                    write_kwargs['audio'] = False
+                    logger.info(f"Writing MP4 without audio to {output_path} with FPS={output_fps:.2f}")
+                processed_clip.write_videofile(output_path, **write_kwargs)
             else:
-                # Write MP4 without audio
-                clip.write_videofile(output_path, codec='libx264', audio=False, fps=clip.fps or fps)
-                logger.info(f"Successfully generated MP4 without audio: {output_path}")
-        else:
-            # This case should ideally be prevented by the calling code setting the correct output_path extension
-            if 'clip' in locals() and clip.reader is not None: clip.close()
-            raise ValueError(f"Unsupported output format for {output_path}. Must be .gif or .mp4")
+                raise ValueError(f"Unsupported output format for {output_path}. Must be .gif or .mp4")
 
-        return output_path
+            logger.info(f"Successfully generated output file: {output_path}")
+            return output_path
 
+    except FileNotFoundError:
+        raise
+    except ValueError as ve:
+        logger.error(f"Value error during video processing: {str(ve)}", exc_info=True)
+        raise
     except Exception as e:
-        logger.error(f"Video processing failed: {str(e)}", exc_info=True)
+        logger.error(f"Video processing failed for {input_path}: {str(e)}", exc_info=True)
         raise
     finally:
-        # Ensure the clip is closed
-        if 'clip' in locals() and hasattr(clip, 'close'):
+        # The 'with VideoFileClip...' handles closing the initially loaded clip.
+        # If intermediate clips (processed_clip, txt_clip) hold resources,
+        # MoviePy 2.x aims for better automatic cleanup, but explicit closing
+        # can be done if memory issues are observed with very long processing chains.
+        # For now, relying on Python's garbage collection and MoviePy's management.
+        if processed_clip and hasattr(processed_clip, 'close') and callable(processed_clip.close):
+            # This check is a bit more robust before calling close
             try:
-                clip.close()
-                logger.debug("Closed video clip in finally block")
+                # Only close if it's not the same object as the one managed by 'with'
+                # or if it's an intermediate clip that needs explicit closing.
+                # However, direct clip.close() on intermediate fx results is often not needed
+                # unless it's a CompositeVideoClip with many sources.
+                # For simplicity here, we assume 'with' handles the main file resource.
+                pass # logger.debug("Skipping explicit close for processed_clip in finally; relying on GC / with statement.")
             except Exception as e_close:
-                logger.error(f"Error attempting to close clip: {e_close}", exc_info=True)
+                logger.error(f"Error attempting to close a processed clip: {e_close}", exc_info=True)
+
+
+if __name__ == '__main__':
+    # Create a dummy video file for testing if it doesn't exist
+    if not os.path.exists('input.mp4'):
+        try:
+            # Ensure ColorClip is imported if used standalone here
+            from moviepy.editor import ColorClip
+            ColorClip(size=(640, 480), color=(0,0,0), duration=5, fps=25).write_videofile("input.mp4")
+            logger.info("Created a dummy 'input.mp4' for testing.")
+        except Exception as e:
+            logger.error(f"Could not create dummy input.mp4: {e}. Please create it manually to run the example.")
+
+    if os.path.exists('input.mp4'):
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+
+        # --- Test Case 1: Basic GIF conversion (subclipped, resized) ---
+        try:
+            logger.info("--- Test Case 1: Basic GIF ---")
+            output_gif_path = process_video_output(
+                input_path='input.mp4',
+                output_path='output.gif',
+                fps=12,
+                width=320,
+                start=1,
+                end=4
+            )
+            logger.info(f"Test Case 1 generated: {output_gif_path}")
+        except Exception as e:
+            logger.error(f"Test Case 1 failed: {e}", exc_info=True)
+
+        # --- Test Case 2: MP4 with text, speed, and audio (all 2.x methods) ---
+        try:
+            logger.info("\n--- Test Case 2: MP4 with text, speed, audio ---")
+            output_mp4_path = process_video_output(
+                input_path='input.mp4',
+                output_path='output_audio.mp4',
+                fps=25,
+                width=480,
+                start=0.5,
+                end=4.5,
+                text="MoviePy 2.x Test!",
+                font_size=24,
+                text_position='bottom-center',
+                text_color='yellow',
+                font_style='Arial',
+                text_bg_color='black@0.5',
+                speed_factor=1.5,
+                reverse=False,
+                include_audio=True,
+                crop_params={'x1': 10, 'y1': 10, 'width': 600, 'height': 400} # Ensure crop area is valid
+            )
+            logger.info(f"Test Case 2 generated: {output_mp4_path}")
+        except Exception as e:
+            logger.error(f"Test Case 2 failed: {e}", exc_info=True)
+
+        # --- Test Case 3: Reversed video, no audio, specific height (all 2.x methods) ---
+        try:
+            logger.info("\n--- Test Case 3: Reversed MP4, no audio, specific height ---")
+            output_mp4_rev_path = process_video_output(
+                input_path='input.mp4',
+                output_path='output_reversed.mp4',
+                height=240,
+                start=1,
+                end=3,
+                text="Reversed & Resized",
+                font_size=30,
+                text_position=('center', 60),
+                text_color='#FF00FF',
+                font_style='Arial',
+                speed_factor=1.0, # Test with normal speed but reversed
+                reverse=True,
+                include_audio=False,
+            )
+            logger.info(f"Test Case 3 generated: {output_mp4_rev_path}")
+        except Exception as e:
+            logger.error(f"Test Case 3 failed: {e}", exc_info=True)
+    else:
+        logger.warning("Cannot run examples because 'input.mp4' does not exist.")

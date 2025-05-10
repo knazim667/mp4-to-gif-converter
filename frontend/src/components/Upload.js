@@ -37,6 +37,12 @@ function Upload() {
   const [speedFactor, setSpeedFactor] = useState(1.0);
   const [reverse, setReverse] = useState(false);
   const [includeAudio, setIncludeAudio] = useState(false); // New state for audio inclusion
+  // Crop states (x, y, width, height) - null means not set/no crop
+  const [cropX, setCropX] = useState(null);
+  const [cropY, setCropY] = useState(null);
+  const [cropW, setCropW] = useState(null);
+  const [cropH, setCropH] = useState(null);
+
   const [gifUrl, setGifUrl] = useState(''); // URL of the converted GIF
 
   const fileInputRef = useRef(null);
@@ -74,6 +80,10 @@ function Upload() {
     setTrim({ start: 0, end: null });
     setScenePoints([]);
     setVideoDuration(0);
+    setCropX(null);
+    setCropY(null);
+    setCropW(null);
+    setCropH(null);
     // Optionally reset other GIF settings here if desired
   };
 
@@ -245,6 +255,10 @@ function Upload() {
         speed_factor: speedFactor,
         reverse: reverse,
         include_audio: includeAudio, // Send audio preference to backend
+        crop_x: cropX,
+        crop_y: cropY,
+        crop_w: cropW,
+        crop_h: cropH,
       });
       const outputType = includeAudio ? 'Video' : 'GIF';
       setMessage({ text: `Success: Converted to ${outputType}. File: ${response.data.filename}`, type: 'success' });
@@ -380,6 +394,7 @@ function Upload() {
               scenes={scenePoints}
             />
           </Box>
+
           <VStack spacing={8} align="stretch">
             <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg}>
               <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Output Options</Heading>
@@ -410,6 +425,40 @@ function Upload() {
                   Include Audio (outputs as short video, e.g., MP4)
                 </Checkbox>
               </FormControl>
+            </Box>
+
+            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg}>
+              <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Crop Video (Optional)</Heading>
+              <Text fontSize="sm" color={labelColor} mb={4}>
+                Specify the top-left corner (X, Y) and the dimensions (Width, Height) for the crop.
+                Leave blank or 0 for no crop. Values are in pixels.
+              </Text>
+              <SimpleGrid columns={{ base: 2, md: 4 }} spacing={6}>
+                <FormControl>
+                  <FormLabel htmlFor="cropX" color={labelColor}>X</FormLabel>
+                  <NumberInput id="cropX" value={cropX ?? ''} min={0} onChange={(valStr, valNum) => setCropX(valStr === '' ? null : valNum)} placeholder="e.g., 10" focusBorderColor="blue.500">
+                    <NumberInputField />
+                  </NumberInput>
+                </FormControl>
+                <FormControl>
+                  <FormLabel htmlFor="cropY" color={labelColor}>Y</FormLabel>
+                  <NumberInput id="cropY" value={cropY ?? ''} min={0} onChange={(valStr, valNum) => setCropY(valStr === '' ? null : valNum)} placeholder="e.g., 10" focusBorderColor="blue.500">
+                    <NumberInputField />
+                  </NumberInput>
+                </FormControl>
+                <FormControl>
+                  <FormLabel htmlFor="cropW" color={labelColor}>Width</FormLabel>
+                  <NumberInput id="cropW" value={cropW ?? ''} min={0} onChange={(valStr, valNum) => setCropW(valStr === '' ? null : valNum)} placeholder="e.g., 640" focusBorderColor="blue.500">
+                    <NumberInputField />
+                  </NumberInput>
+                </FormControl>
+                <FormControl>
+                  <FormLabel htmlFor="cropH" color={labelColor}>Height</FormLabel>
+                  <NumberInput id="cropH" value={cropH ?? ''} min={0} onChange={(valStr, valNum) => setCropH(valStr === '' ? null : valNum)} placeholder="e.g., 480" focusBorderColor="blue.500">
+                    <NumberInputField />
+                  </NumberInput>
+                </FormControl>
+              </SimpleGrid>
             </Box>
 
             <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg}>
