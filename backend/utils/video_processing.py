@@ -139,7 +139,7 @@ def process_video_output(input_path, output_path, fps=10, width=320, height=None
 
                 try:
                     txt_clip = TextClip(
-                        txt=text, fontsize=font_size, color=text_color,
+                        text=text, font_size=font_size, color=text_color,
                         font=font_style, bg_color=text_bg_color if text_bg_color else 'transparent'
                     )
                     # MOVIEPY 2.x: with_position and with_duration

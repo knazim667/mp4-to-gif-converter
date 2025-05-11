@@ -8,6 +8,12 @@ function VideoPlayer({ src, onMetadataLoaded }) {
   const playerRef = useRef(null);
   const headingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
   const playerBg = useColorModeValue('black', 'gray.900'); // Background for the player
+  const onMetadataLoadedRef = useRef(onMetadataLoaded);
+
+  // Keep the ref updated with the latest callback
+  useEffect(() => {
+    onMetadataLoadedRef.current = onMetadataLoaded;
+  }, [onMetadataLoaded]);
 
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -37,13 +43,13 @@ function VideoPlayer({ src, onMetadataLoaded }) {
       };
 
       const player = videojs(videoElement, options, () => {
-        // console.log('Player is ready');
+        console.log('Player is ready');
       });
 
       player.on('loadedmetadata', () => {
         // console.log('Video metadata loaded:', videoRef.current.videoWidth, videoRef.current.videoHeight);
-        if (onMetadataLoaded && videoRef.current) {
-          onMetadataLoaded({
+        if (onMetadataLoadedRef.current && videoRef.current) {
+          onMetadataLoadedRef.current({
             width: videoRef.current.offsetWidth, // Actual displayed width of the video element
             height: videoRef.current.offsetHeight, // Actual displayed height
             naturalWidth: videoRef.current.videoWidth, // Intrinsic width of the video
@@ -62,7 +68,7 @@ function VideoPlayer({ src, onMetadataLoaded }) {
         playerRef.current = null;
       }
     };
-  }, [src, onMetadataLoaded]); // Re-run effect if src or onMetadataLoaded callback changes
+  }, [src]); // Re-run effect only if src changes
 
   return (
     <Box my={4} className="video-player-container">
@@ -74,7 +80,11 @@ function VideoPlayer({ src, onMetadataLoaded }) {
           Removed inline style: style={{ width: '100%', height: 'auto' }}
           Added vjs-fluid class for responsiveness if fluid:true option is used.
         */}
-        <video ref={videoRef} className="video-js vjs-big-play-centered vjs-fluid" />
+        <video
+          key={src} // Add key here, tied to the src
+          ref={videoRef}
+          className="video-js vjs-big-play-centered vjs-fluid"
+        />
       </Box>
     </Box>
   );

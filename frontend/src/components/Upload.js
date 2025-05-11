@@ -48,6 +48,15 @@ function Upload() {
   const [selectionRect, setSelectionRect] = useState({ x: 0, y: 0, width: 100, height: 100 }); // Initial/default selection for visual cropper
 
 
+  // State for visual cropper interaction
+  const [interaction, setInteraction] = useState({
+    type: null, // 'drag', 'resize'
+    handle: null, // e.g., 'body', 'se' (south-east)
+    startX: 0,    // Mouse X at interaction start (relative to visualCropContainer)
+    startY: 0,    // Mouse Y at interaction start (relative to visualCropContainer)
+    initialRect: null, // selectionRect at interaction start
+  });
+  const visualCropContainerRef = useRef(null);
   const [gifUrl, setGifUrl] = useState(''); // URL of the converted GIF
 
   const fileInputRef = useRef(null);
@@ -67,15 +76,31 @@ function Upload() {
   const settingsBoxBg = useColorModeValue('white', 'gray.750');
   const settingsHeadingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
   const resultHeadingColor = useColorModeValue('purple.600', 'purple.300');
-  // Cleanup for local video preview URL
-  // This useEffect is responsible for revoking blob URLs when they are no longer needed.
-  useEffect(() => {
-    const srcToManage = videoSrc; // Capture the src for this specific effect run.
 
+  const previousVideoSrcRef = useRef(null);
+
+  // Cleanup for local video preview URL
+  useEffect(() => {
+    // The current videoSrc at the time this effect runs
+    const currentSrc = videoSrc;
+    // The videoSrc from the previous render (captured by the ref)
+    const previousSrc = previousVideoSrcRef.current;
+
+    // If there was a previous blob URL, and it's different from the current one
+    // (or if the current one is null, indicating we're no longer using the previous blob),
+    // then revoke the previous blob URL.
+    if (previousSrc && previousSrc.startsWith('blob:') && previousSrc !== currentSrc) {
+      URL.revokeObjectURL(previousSrc);
+    }
+
+    // Update the ref to the current videoSrc for the next render's comparison.
+    previousVideoSrcRef.current = currentSrc;
+
+    // Cleanup on component unmount: if the last videoSrc was a blob, revoke it.
     return () => {
-      // Only revoke if srcToManage was a blob URL.
-      if (srcToManage && srcToManage.startsWith('blob:')) {
-        URL.revokeObjectURL(srcToManage);
+      if (previousVideoSrcRef.current && previousVideoSrcRef.current.startsWith('blob:')) {
+        URL.revokeObjectURL(previousVideoSrcRef.current);
+        previousVideoSrcRef.current = null; // Clear ref on unmount
       }
     };
   }, [videoSrc]); // Re-run this effect if videoSrc changes.
@@ -294,51 +319,137 @@ function Upload() {
     setTrim({ start, end });
   };
 
-  // Callback for VideoPlayer to report its dimensions
+  const handleVisualCropChange = useCallback((newRect) => {
+    const minDimension = 10; // Minimum width/height for crop in original pixels
+    const validatedRect = {
+        x: Math.round(newRect.x ?? 0),
+        y: Math.round(newRect.y ?? 0),
+        width: Math.round(newRect.width ?? minDimension),
+        height: Math.round(newRect.height ?? minDimension),
+        selectionNaturalWidth: newRect.selectionNaturalWidth,
+        selectionNaturalHeight: newRect.selectionNaturalHeight,
+    };
+
+    // Ensure dimensions are at least minDimension
+    validatedRect.width = Math.max(minDimension, validatedRect.width);
+    validatedRect.height = Math.max(minDimension, validatedRect.height);
+
+    // Boundary checks against natural dimensions
+    if (validatedRect.selectionNaturalWidth > 0 && validatedRect.selectionNaturalHeight > 0) {
+        validatedRect.x = Math.max(0, validatedRect.x);
+        validatedRect.y = Math.max(0, validatedRect.y);
+
+        // Adjust x/y if width/height pushes it out of bounds
+        if (validatedRect.x + validatedRect.width > validatedRect.selectionNaturalWidth) {
+            validatedRect.x = validatedRect.selectionNaturalWidth - validatedRect.width;
+        }
+        if (validatedRect.y + validatedRect.height > validatedRect.selectionNaturalHeight) {
+            validatedRect.y = validatedRect.selectionNaturalHeight - validatedRect.height;
+        }
+        // Re-check after adjustment, ensure x,y are not negative if width/height is larger than naturalDim
+        validatedRect.x = Math.max(0, validatedRect.x);
+        validatedRect.y = Math.max(0, validatedRect.y);
+
+        // Ensure width/height do not exceed natural dimensions from the current x/y
+        validatedRect.width = Math.min(validatedRect.width, validatedRect.selectionNaturalWidth - validatedRect.x);
+        validatedRect.height = Math.min(validatedRect.height, validatedRect.selectionNaturalHeight - validatedRect.y);
+    }
+
+    setCropX(validatedRect.x);
+    setCropY(validatedRect.y);
+    setCropW(validatedRect.width);
+    setCropH(validatedRect.height);
+    setSelectionRect(validatedRect);
+  }, [/* stable: only calls setters */]);
+
   const handleVideoMetadata = useCallback(({ width, height, naturalWidth, naturalHeight }) => {
     setVideoPreviewDimensions({ width, height, naturalWidth, naturalHeight });
-    // Initialize or adjust selectionRect based on new video dimensions if needed
-    // For example, set a default crop or ensure existing crop is valid
-    const initialSelectionWidth = naturalWidth / 4;
-    const initialSelectionHeight = naturalHeight / 4;
-    const initialX = (naturalWidth - initialSelectionWidth) / 2;
-    const initialY = (naturalHeight - initialSelectionHeight) / 2;
-    
-    // Update selectionRect, potentially preserving parts of old selection if dimensions match
-    // This part might need more sophisticated logic based on desired UX when video changes
-    setSelectionRect(currentSelection => ({
-        x: initialX,
-        y: initialY,
-        width: initialSelectionWidth,
-        height: initialSelectionHeight,
-        // Store natural dimensions with selection for context, useful for scaling
-        selectionNaturalWidth: naturalWidth, 
-        selectionNaturalHeight: naturalHeight 
-    }));
 
-    // Update numerical inputs as well, only if they haven't been manually set or if visual cropper is active
-    if (cropX === null || showVisualCropper) {
-        setCropX(Math.round(initialX));
-    }
-    if (cropY === null || showVisualCropper) {
-        setCropY(Math.round(initialY));
-    }
-    if (cropW === null || showVisualCropper) {
-        setCropW(Math.round(initialSelectionWidth));
-    }
-    if (cropH === null || showVisualCropper) {
-        setCropH(Math.round(initialSelectionHeight));
-    }
-  }, [cropX, cropY, cropW, cropH, showVisualCropper]); // Dependencies for useCallback
+    if (naturalWidth > 0 && naturalHeight > 0) {
+        const initialX = 0;
+        const initialY = 0;
+        const initialSelectionWidth = naturalWidth;
+        const initialSelectionHeight = naturalHeight;
 
-  // This function would be called by the visual cropper component when the selection changes
-  const handleVisualCropChange = (newRect) => {
-    // newRect should contain x, y, width, height in pixels relative to the original video dimensions
-    setCropX(Math.round(newRect.x));
-    setCropY(Math.round(newRect.y));
-    setCropW(Math.round(newRect.width));
-    setCropH(Math.round(newRect.height));
-    setSelectionRect(newRect); // Keep visual selection in sync if it's different from original scale
+        handleVisualCropChange({
+            x: initialX,
+            y: initialY,
+            width: initialSelectionWidth,
+            height: initialSelectionHeight,
+            selectionNaturalWidth: naturalWidth,
+            selectionNaturalHeight: naturalHeight
+        });
+    } else {
+        handleVisualCropChange({
+            x: 0, y: 0, width: 0, height: 0,
+            selectionNaturalWidth: 0, selectionNaturalHeight: 0
+        });
+    }
+  }, [handleVisualCropChange]);
+
+  // Effect for handling global mouse move and up for drag/resize
+  useEffect(() => {
+    if (!interaction.type || !visualCropContainerRef.current) return;
+
+    const containerRect = visualCropContainerRef.current.getBoundingClientRect();
+
+    const handleDocumentMouseMove = (e) => {
+      e.preventDefault();
+      const mouseXInContainer = e.clientX - containerRect.left;
+      const mouseYInContainer = e.clientY - containerRect.top;
+
+      const { initialRect, startX, startY, type, handle } = interaction;
+      if (!initialRect) return;
+
+      const displayWidth = videoPreviewDimensions.width;
+      const displayHeight = videoPreviewDimensions.height;
+      const naturalWidth = initialRect.selectionNaturalWidth;
+      const naturalHeight = initialRect.selectionNaturalHeight;
+
+      if (displayWidth === 0 || displayHeight === 0 || naturalWidth === 0 || naturalHeight === 0) return;
+
+      const scaleX = naturalWidth / displayWidth;
+      const scaleY = naturalHeight / displayHeight;
+
+      const deltaXOriginal = (mouseXInContainer - startX) * scaleX;
+      const deltaYOriginal = (mouseYInContainer - startY) * scaleY;
+
+      let newRect = { ...initialRect };
+
+      if (type === 'drag') {
+        newRect.x = initialRect.x + deltaXOriginal;
+        newRect.y = initialRect.y + deltaYOriginal;
+      } else if (type === 'resize') {
+        if (handle === 'se') { // South-East handle
+          newRect.width = initialRect.width + deltaXOriginal;
+          newRect.height = initialRect.height + deltaYOriginal;
+        }
+        // Add other handle logic here (nw, ne, sw, n, s, w, e)
+      }
+      handleVisualCropChange(newRect);
+    };
+
+    const handleDocumentMouseUp = (e) => {
+      e.preventDefault();
+      setInteraction({ type: null });
+    };
+
+    document.addEventListener('mousemove', handleDocumentMouseMove);
+    document.addEventListener('mouseup', handleDocumentMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleDocumentMouseMove);
+      document.removeEventListener('mouseup', handleDocumentMouseUp);
+    };
+  }, [interaction, videoPreviewDimensions, handleVisualCropChange]);
+
+  const startInteraction = (e, type, handle = 'body') => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!visualCropContainerRef.current) return;
+    const containerRect = visualCropContainerRef.current.getBoundingClientRect();
+    const startX = e.clientX - containerRect.left;
+    const startY = e.clientY - containerRect.top;
+    setInteraction({ type, handle, startX, startY, initialRect: { ...selectionRect } });
   };
 
   const fontStyleOptions = ["Arial", "Times New Roman", "Courier New", "Verdana", "Georgia", "Comic Sans MS"];
@@ -466,6 +577,7 @@ function Upload() {
                 height={`${videoPreviewDimensions.height}px`} // Match displayed video height
                 mx="auto" // Center it
                 border="2px dashed gray"
+                ref={visualCropContainerRef}
                 overflow="hidden" // Important if video itself is larger than this box
             >
                 <video
@@ -475,21 +587,36 @@ function Upload() {
                     autoPlay={false}
                     muted
                 />
-                {/* Placeholder for draggable selection box - to be replaced by a real component */}
+                {/* Draggable and Resizable Selection Box */}
                 <Box
                     position="absolute"
                     border="2px solid blue"
                     bg="rgba(0,0,255,0.2)"
                     style={{
-                        left: `${(selectionRect.x / videoPreviewDimensions.naturalWidth) * videoPreviewDimensions.width}px`,
-                        top: `${(selectionRect.y / videoPreviewDimensions.naturalHeight) * videoPreviewDimensions.height}px`,
-                        width: `${(selectionRect.width / videoPreviewDimensions.naturalWidth) * videoPreviewDimensions.width}px`,
-                        height: `${(selectionRect.height / videoPreviewDimensions.naturalHeight) * videoPreviewDimensions.height}px`,
-                        cursor: 'move', // Basic cursor
+                        left: videoPreviewDimensions.width > 0 ? `${(selectionRect.x / selectionRect.selectionNaturalWidth) * videoPreviewDimensions.width}px` : '0px',
+                        top: videoPreviewDimensions.height > 0 ? `${(selectionRect.y / selectionRect.selectionNaturalHeight) * videoPreviewDimensions.height}px` : '0px',
+                        width: videoPreviewDimensions.width > 0 ? `${(selectionRect.width / selectionRect.selectionNaturalWidth) * videoPreviewDimensions.width}px` : '0px',
+                        height: videoPreviewDimensions.height > 0 ? `${(selectionRect.height / selectionRect.selectionNaturalHeight) * videoPreviewDimensions.height}px` : '0px',
+                        cursor: 'move',
+                        display: (selectionRect.width <=0 || selectionRect.height <=0) ? 'none' : 'block', // Hide if invalid rect
                     }}
+                    onMouseDown={(e) => startInteraction(e, 'drag')}
                 >
-                    <Text color="white" p={1} bg="blue.500" fontSize="xs">Drag/Resize Me (Placeholder)</Text>
+                    {/* Resize Handle (South-East) - Example */}
+                    <Box
+                        position="absolute"
+                        bottom="-5px"
+                        right="-5px"
+                        width="10px"
+                        height="10px"
+                        bg="blue.500"
+                        cursor="se-resize"
+                        borderRadius="sm"
+                        onMouseDown={(e) => startInteraction(e, 'resize', 'se')}
+                    />
+                    {/* Add other resize handles similarly (nw, ne, sw, n, s, w, e) */}
                 </Box>
+
             </Box>
             <Text mt={2} fontSize="sm">Current Crop (Original Dims): X={cropX ?? 0}, Y={cropY ?? 0}, W={cropW ?? 0}, H={cropH ?? 0}</Text>
         </Box>
