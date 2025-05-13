@@ -252,6 +252,32 @@ Here are some potential ideas for future development and improvements:
 This comprehensive README should provide a solid foundation for understanding, setting up, and running your MP4 to GIF & Short Video Converter project. Remember to replace any placeholder values with your actual configuration details. Good luck!
 
 
+## Upcoming Features & Potential Enhancements
 
+Here's a list of potential features and improvements we're considering for future versions:
+
+*   **Real-time Previews:**
+    *   Live preview for text overlay adjustments (font, size, color, position).
+    *   Attempt real-time feedback for some simpler effects.
+*   **Granular Progress Indicators:**
+    *   Detailed progress bars for file uploads (percentage).
+    *   Step-by-step progress updates during the conversion process (e.g., "Trimming...", "Applying effects...", "Encoding...").
+*   **Preset Options:**
+    *   Pre-defined configurations for common use cases (e.g., "High-Quality GIF," "Small Email GIF," "Social Media MP4").
+*   **Additional Video Effects/Filters:**
+    *   Brightness, contrast, saturation adjustments.
+    *   Grayscale, Sepia filters.
+*   **Enhanced Visual Cropper:**
+    *   Aspect ratio locking for crop selection.
+    *   Real-time display of numeric crop values (X, Y, W, H) during visual selection.
+    *   Snapping options (to edges, center).
+*   **Componentization of Settings:**
+    *   Refactor large UI sections (e.g., Output Options, Crop, Text Overlay, Effects) into smaller, more manageable React components.
+*   **User Configurations/Templates:**
+    *   Allow users to save their current set of conversion settings as a template.
+    *   Ability to load saved templates for frequent tasks.
+*   **Advanced GIF Options:**
+    *   Dithering options for better color quality in GIFs.
+    *   Loop count control.
 
 

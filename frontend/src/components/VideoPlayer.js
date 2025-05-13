@@ -3,12 +3,13 @@ import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
 import { Box, Heading, useColorModeValue } from '@chakra-ui/react';
 
-function VideoPlayer({ src, onMetadataLoaded }) {
+function VideoPlayer({ src, onMetadataLoaded, liveTextOverlay }) {
   const videoRef = useRef(null);
   const playerRef = useRef(null);
   const headingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
   const playerBg = useColorModeValue('black', 'gray.900'); // Background for the player
   const onMetadataLoadedRef = useRef(onMetadataLoaded);
+  const overlayRef = useRef(null); // Ref for the text overlay element
 
   // Keep the ref updated with the latest callback
   useEffect(() => {
@@ -72,6 +73,76 @@ function VideoPlayer({ src, onMetadataLoaded }) {
       }
     };
   }, [src]); // Effect dependencies: re-initialize if `src` changes.
+
+  // Effect for managing the live text overlay
+  useEffect(() => {
+    const player = playerRef.current;
+
+    // If player is not ready or disposed, or no text to display, remove existing overlay
+    if (!player || player.isDisposed() || !liveTextOverlay || !liveTextOverlay.text) {
+      if (overlayRef.current) {
+        overlayRef.current.remove();
+        overlayRef.current = null;
+      }
+      return;
+    }
+
+    // Create overlay element if it doesn't exist
+    if (!overlayRef.current) {
+      overlayRef.current = document.createElement('div');
+      overlayRef.current.style.position = 'absolute';
+      overlayRef.current.style.pointerEvents = 'none'; // Prevent interference with video controls
+      overlayRef.current.style.zIndex = '10'; // Ensure it's above the video
+      overlayRef.current.style.textAlign = 'center'; // Default text alignment
+      player.el().appendChild(overlayRef.current); // Append to player's DOM element
+    }
+
+    const overlayEl = overlayRef.current;
+    const { text, fontSize, position, color, bgColor, fontStyle } = liveTextOverlay;
+
+    overlayEl.textContent = text;
+    overlayEl.style.fontSize = `${fontSize || 24}px`;
+    overlayEl.style.fontFamily = fontStyle || 'Arial, sans-serif';
+    overlayEl.style.color = color || 'white';
+    
+    if (bgColor && bgColor.trim() !== '') {
+      overlayEl.style.backgroundColor = bgColor;
+      overlayEl.style.padding = '0.2em 0.4em';
+      overlayEl.style.borderRadius = '3px';
+    } else {
+      overlayEl.style.backgroundColor = 'transparent';
+      overlayEl.style.padding = '0';
+      overlayEl.style.borderRadius = '0';
+    }
+
+    // Positioning logic
+    overlayEl.style.top = 'auto';
+    overlayEl.style.bottom = 'auto';
+    overlayEl.style.left = '50%'; // Default to horizontal center
+    overlayEl.style.right = 'auto';
+    overlayEl.style.transform = 'translateX(-50%)'; // Adjust for horizontal centering
+
+    const margin = '15px'; // Margin from edges
+
+    if (position === 'top-left' || position === 'top-right') {
+      overlayEl.style.top = margin;
+    } else if (position === 'bottom-left' || position === 'bottom-right') {
+      overlayEl.style.bottom = margin;
+    } else { // center
+      overlayEl.style.top = '50%';
+      overlayEl.style.transform = 'translate(-50%, -50%)'; // Adjust for vertical centering too
+    }
+
+    if (position === 'top-left' || position === 'bottom-left') {
+      overlayEl.style.left = margin;
+      overlayEl.style.transform = position.includes('top') || position.includes('bottom') ? 'translateY(0)' : 'translate(-50%, -50%)'; // Reset transform if not purely centered
+    } else if (position === 'top-right' || position === 'bottom-right') {
+      overlayEl.style.left = 'auto'; // Unset left for right alignment
+      overlayEl.style.right = margin;
+      overlayEl.style.transform = position.includes('top') || position.includes('bottom') ? 'translateY(0)' : 'translate(-50%, -50%)';  // Reset transform if not purely centered
+    }
+
+  }, [liveTextOverlay, playerRef.current]); // Re-run if overlay settings or player instance changes
 
   return (
     <Box my={4} className="video-player-container">

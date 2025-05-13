@@ -10,6 +10,34 @@ import {
 } from '@chakra-ui/react';
 import { FiUploadCloud } from 'react-icons/fi'; // Example icon
 
+/*
+Upcoming Features & Potential Enhancements:
+
+*   Real-time Previews:
+    *   Live preview for text overlay adjustments (font, size, color, position).
+    *   Attempt real-time feedback for some simpler effects.
+*   Granular Progress Indicators:
+    *   Detailed progress bars for file uploads (percentage).
+    *   Step-by-step progress updates during the conversion process (e.g., "Trimming...", "Applying effects...", "Encoding...").
+*   Preset Options:
+    *   Pre-defined configurations for common use cases (e.g., "High-Quality GIF," "Small Email GIF," "Social Media MP4").
+*   Additional Video Effects/Filters:
+    *   Brightness, contrast, saturation adjustments.
+    *   Grayscale, Sepia filters.
+*   Enhanced Visual Cropper:
+    *   Aspect ratio locking for crop selection.
+    *   Real-time display of numeric crop values (X, Y, W, H) during visual selection.
+    *   Snapping options (to edges, center).
+*   Componentization of Settings:
+    *   Refactor large UI sections (e.g., Output Options, Crop, Text Overlay, Effects) into smaller, more manageable React components.
+*   User Configurations/Templates:
+    *   Allow users to save their current set of conversion settings as a template.
+    *   Ability to load saved templates for frequent tasks.
+*   Advanced GIF Options:
+    *   Dithering options for better color quality in GIFs.
+    *   Loop count control.
+*/
+
 function Upload() {
   // File and URL states
   const [file, setFile] = useState(null);
@@ -472,7 +500,17 @@ function Upload() {
   };
 
   const fontStyleOptions = ["Arial", "Times New Roman", "Courier New", "Verdana", "Georgia", "Comic Sans MS"];
-
+    // Prepare liveTextOverlay props for the preview player
+  // This should be defined within the component's render logic but before the return statement
+  const liveTextOverlayProps = (textOverlay && videoSrc && !gifUrl && !showVisualCropper) ? {
+    text: textOverlay,
+    fontSize: fontSize,
+    position: textPosition,
+    color: textColor,
+    bgColor: textBgColor,
+    fontStyle: fontStyle,
+  } : null;
+  
   return (
     <Box bg={mainBg} borderRadius="xl" boxShadow="lg" p={{ base: 4, md: 8 }} color={mainText}>
       <Heading as="h2" size="xl" mb={8} textAlign="center" fontWeight="bold">
@@ -576,12 +614,13 @@ function Upload() {
         </Button>
       </VStack>
 
-      {/* Video Preview Area - show if videoSrc is available and no GIF is generated, OR if visual cropper is active */}
+       {/* Video Preview Area - show if videoSrc is available and no GIF is generated, OR if visual cropper is active */}
       {(videoSrc && !gifUrl && !showVisualCropper) && (
         <VideoPlayer
           key={videoPlayerKey} // Add key here
           src={videoSrc}
           onMetadataLoaded={handleVideoMetadata}
+          liveTextOverlay={liveTextOverlayProps}
         />
       )}
 
