@@ -18,14 +18,14 @@ function VideoPlayer({ src, onMetadataLoaded }) {
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement) return;
-
-    // Dispose of the old player if it exists, before creating a new one
+    
+    // It's crucial to dispose of the old player instance if one exists.
+    // This will be called on unmount (due to parent key change) or if src changes directly.
     if (playerRef.current) {
       playerRef.current.dispose();
       playerRef.current = null;
     }
 
-    // If a new src is provided, initialize a new player
     if (src) {
       // Determine video type from src extension if possible
       let videoType = '';
@@ -33,7 +33,7 @@ function VideoPlayer({ src, onMetadataLoaded }) {
       else if (src.includes('.webm')) videoType = 'video/webm';
       else if (src.includes('.ogv') || src.includes('.ogg')) videoType = 'video/ogg';
       // Add more types as needed
-
+      
       const options = {
         controls: true,
         responsive: true,
@@ -43,11 +43,12 @@ function VideoPlayer({ src, onMetadataLoaded }) {
       };
 
       const player = videojs(videoElement, options, () => {
-        console.log('Player is ready');
+        // console.log('Player is ready'); // Keep for debugging if needed
       });
 
       player.on('loadedmetadata', () => {
         // console.log('Video metadata loaded:', videoRef.current.videoWidth, videoRef.current.videoHeight);
+        // Ensure videoRef.current is still valid as this is an async event
         if (onMetadataLoadedRef.current && videoRef.current) {
           onMetadataLoadedRef.current({
             width: videoRef.current.offsetWidth, // Actual displayed width of the video element
@@ -61,14 +62,16 @@ function VideoPlayer({ src, onMetadataLoaded }) {
       playerRef.current = player;
     }
 
-    // Cleanup: dispose the player when the component unmounts or src changes
+    // The return function from useEffect serves as the cleanup.
+    // It will run when the component unmounts (e.g. parent key changes)
+    // or before the effect runs again if `src` were in the dependency array and changed.
     return () => {
-      if (playerRef.current && !playerRef.current.isDisposed()) {
+      if (playerRef.current && typeof playerRef.current.dispose === 'function' && !playerRef.current.isDisposed()) {
         playerRef.current.dispose();
         playerRef.current = null;
       }
     };
-  }, [src]); // Re-run effect only if src changes
+  }, [src]); // Effect dependencies: re-initialize if `src` changes.
 
   return (
     <Box my={4} className="video-player-container">
@@ -77,14 +80,11 @@ function VideoPlayer({ src, onMetadataLoaded }) {
       </Heading>
       <Box data-vjs-player bg={playerBg} borderRadius="md" overflow="hidden">
         {/* 
-          Removed inline style: style={{ width: '100%', height: 'auto' }}
-          Added vjs-fluid class for responsiveness if fluid:true option is used.
+          The `key` prop on the <video> element ensures that if the `src` changes,
+          React treats the <video> element itself as a new element, forcing a full re-initialization
+          by the browser, which can be helpful for video.js.
         */}
-        <video
-          key={src} // Add key here, tied to the src
-          ref={videoRef}
-          className="video-js vjs-big-play-centered vjs-fluid"
-        />
+        <video key={src} ref={videoRef} className="video-js vjs-big-play-centered vjs-fluid" />
       </Box>
     </Box>
   );

@@ -15,6 +15,7 @@ function Upload() {
   const [file, setFile] = useState(null);
   const [videoUrlInput, setVideoUrlInput] = useState('');
   const [uploadedFilename, setUploadedFilename] = useState(''); // Filename on S3 after upload/URL processing
+  const [videoPlayerKey, setVideoPlayerKey] = useState(Date.now()); // Key for VideoPlayer
   const [videoSrc, setVideoSrc] = useState(null); // For local file preview
 
   // UI states
@@ -255,16 +256,16 @@ function Upload() {
         setTrim({ start: 0, end: analyzeResponse.data.duration });
 
         if (backendPreviewUrl) {
-          // If the backend provides a new preview URL, use it.
           setVideoSrc(backendPreviewUrl);
-          // For URL-based videos, metadata will be fetched by VideoPlayer's onMetadataLoaded
         } else if (videoSrcPriorToAnalysis && videoSrcPriorToAnalysis.startsWith('blob:')) {
-          // If backend didn't provide a preview URL, but we had a local blob preview captured
-          // before the /analyze call, ensure videoSrc is set to this captured blob URL.
-          // Metadata for local files is already handled in handleFileChange/handleDrop
-          setVideoSrc(videoSrcPriorToAnalysis);
+          // If no new URL from backend, but we had a local blob (e.g., from file upload),
+          // ensure videoSrc is still set to that blob.
+          // If videoSrc was cleared (e.g. during URL processing path), restore it.
+          if (videoSrc !== videoSrcPriorToAnalysis) {
+            setVideoSrc(videoSrcPriorToAnalysis);
+          }
         } else {
-          // If backend didn't provide a preview URL AND there was no prior blob preview (e.g. from URL input path)
+          // No backend URL and no prior local blob (e.g., from URL input path that cleared videoSrc)
           setVideoSrc(null); // Or setVideoSrc(backendPreviewUrl) which would be falsy
         }
         setMessage({ text: `Video analyzed successfully. Ready to convert.`, type: 'success' });
@@ -273,6 +274,7 @@ function Upload() {
         setUploadedFilename(''); // Clear if analysis fails
       }
     }
+    setVideoPlayerKey(Date.now()); // Update key to force VideoPlayer re-render
     setIsLoading(false);
   };
 
@@ -417,21 +419,38 @@ function Upload() {
       let newRect = { ...initialRect };
 
       if (type === 'drag') {
-        newRect.x = initialRect.x + deltaXOriginal;
-        newRect.y = initialRect.y + deltaYOriginal;
+        newRect.x = Math.round(initialRect.x + deltaXOriginal);
+        newRect.y = Math.round(initialRect.y + deltaYOriginal);
       } else if (type === 'resize') {
-        if (handle === 'se') { // South-East handle
-          newRect.width = initialRect.width + deltaXOriginal;
-          newRect.height = initialRect.height + deltaYOriginal;
+        const { x: ix, y: iy, width: iw, height: ih } = initialRect;
+        const minDim = 10; // Minimum dimension in original pixels for crop
+
+        // Horizontal changes
+        if (handle.includes('e')) { // East handles (ne, e, se)
+          newRect.width = Math.max(minDim, Math.round(iw + deltaXOriginal));
         }
-        // Add other handle logic here (nw, ne, sw, n, s, w, e)
+        if (handle.includes('w')) { // West handles (nw, w, sw)
+          const newWidth = Math.max(minDim, Math.round(iw - deltaXOriginal));
+          newRect.x = Math.round(ix + (iw - newWidth)); // Adjust x to account for width change from left
+          newRect.width = newWidth;
+        }
+
+        // Vertical changes
+        if (handle.includes('s')) { // South handles (sw, s, se)
+          newRect.height = Math.max(minDim, Math.round(ih + deltaYOriginal));
+        }
+        if (handle.includes('n')) { // North handles (nw, n, ne)
+          const newHeight = Math.max(minDim, Math.round(ih - deltaYOriginal));
+          newRect.y = Math.round(iy + (ih - newHeight)); // Adjust y to account for height change from top
+          newRect.height = newHeight;
+        }
       }
       handleVisualCropChange(newRect);
     };
 
     const handleDocumentMouseUp = (e) => {
       e.preventDefault();
-      setInteraction({ type: null });
+      setInteraction({ type: null, handle: null, startX: 0, startY: 0, initialRect: null });
     };
 
     document.addEventListener('mousemove', handleDocumentMouseMove);
@@ -440,7 +459,7 @@ function Upload() {
       document.removeEventListener('mousemove', handleDocumentMouseMove);
       document.removeEventListener('mouseup', handleDocumentMouseUp);
     };
-  }, [interaction, videoPreviewDimensions, handleVisualCropChange]);
+  }, [interaction, videoPreviewDimensions, handleVisualCropChange]); // Keeping videoPreviewDimensions as a whole object dependency
 
   const startInteraction = (e, type, handle = 'body') => {
     e.preventDefault();
@@ -558,7 +577,13 @@ function Upload() {
       </VStack>
 
       {/* Video Preview Area - show if videoSrc is available and no GIF is generated, OR if visual cropper is active */}
-      {(videoSrc && !gifUrl && !showVisualCropper) && <VideoPlayer src={videoSrc} onMetadataLoaded={handleVideoMetadata} />}
+      {(videoSrc && !gifUrl && !showVisualCropper) && (
+        <VideoPlayer
+          key={videoPlayerKey} // Add key here
+          src={videoSrc}
+          onMetadataLoaded={handleVideoMetadata}
+        />
+      )}
 
       {showVisualCropper && videoSrc && videoPreviewDimensions.naturalWidth > 0 && (
         <Box my={4} p={4} borderWidth="1px" borderRadius="lg" borderColor="blue.500">
@@ -602,19 +627,47 @@ function Upload() {
                     }}
                     onMouseDown={(e) => startInteraction(e, 'drag')}
                 >
-                    {/* Resize Handle (South-East) - Example */}
-                    <Box
-                        position="absolute"
-                        bottom="-5px"
-                        right="-5px"
-                        width="10px"
-                        height="10px"
-                        bg="blue.500"
-                        cursor="se-resize"
-                        borderRadius="sm"
-                        onMouseDown={(e) => startInteraction(e, 'resize', 'se')}
-                    />
-                    {/* Add other resize handles similarly (nw, ne, sw, n, s, w, e) */}
+                    {/* Resize Handles */}
+                    {['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'].map(handleName => {
+                        const handleSize = "12px"; // Increased size for better visibility
+                        const handleOffset = "-6px"; // To center handles on the border
+                        let handleStyle = {};
+
+                        if (handleName.includes('n')) handleStyle.top = handleOffset;
+                        if (handleName.includes('s')) handleStyle.bottom = handleOffset;
+                        if (handleName.includes('w')) handleStyle.left = handleOffset;
+                        if (handleName.includes('e')) handleStyle.right = handleOffset;
+
+                        if (handleName === 'n' || handleName === 's') {
+                            handleStyle.left = '50%';
+                            handleStyle.transform = 'translateX(-50%)';
+                        }
+                        if (handleName === 'w' || handleName === 'e') {
+                            handleStyle.top = '50%';
+                            handleStyle.transform = 'translateY(-50%)';
+                        }
+                        
+                        if (handleName === 'nw') { handleStyle.cursor = 'nwse-resize'; }
+                        else if (handleName === 'ne') { handleStyle.cursor = 'nesw-resize'; }
+                        else if (handleName === 'sw') { handleStyle.cursor = 'nesw-resize'; }
+                        else if (handleName === 'se') { handleStyle.cursor = 'nwse-resize'; }
+                        else if (handleName === 'n' || handleName === 's') { handleStyle.cursor = 'ns-resize'; }
+                        else if (handleName === 'w' || handleName === 'e') { handleStyle.cursor = 'ew-resize'; }
+
+                        return (
+                            <Box
+                                key={handleName}
+                                position="absolute"
+                                width={handleSize}
+                                height={handleSize}
+                                bg="blue.600" // Darker blue for better visibility
+                                border="1px solid white" // Border for contrast
+                                borderRadius="2px" // Slightly rounded
+                                style={handleStyle}
+                                onMouseDown={(e) => startInteraction(e, 'resize', handleName)}
+                            />
+                        );
+                    })}
                 </Box>
 
             </Box>
@@ -807,7 +860,11 @@ function Upload() {
           <Box borderRadius="md" overflow="hidden">
             <Center>
               {includeAudio ? (
-                <VideoPlayer src={gifUrl} onMetadataLoaded={() => {}} /> // Pass dummy if not needed for result
+                <VideoPlayer
+                  key={gifUrl} // Use gifUrl as key for re-render if it changes
+                  src={gifUrl}
+                  onMetadataLoaded={() => {}} // Pass dummy if not needed for result
+                />
               ) : (
                 <Image src={gifUrl} alt={`Converted ${includeAudio ? 'Video' : 'GIF'}`} maxW="full" borderRadius="md" />
               )}
