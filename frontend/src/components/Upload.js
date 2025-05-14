@@ -5,7 +5,7 @@ import TrimSlider from './TrimSlider';   // Assuming you have this component
 import {
   Box, Heading, Text, Button, Input, FormControl, FormLabel, Checkbox, HStack,
   SimpleGrid, Center, Image, Link, useColorModeValue, Select, VStack,
-  Alert, AlertIcon, AlertTitle, AlertDescription, CloseButton, Spinner,
+  Alert, AlertIcon, AlertTitle, AlertDescription, CloseButton, Spinner, Progress,
   NumberInput, NumberInputField, NumberInputStepper, NumberIncrementStepper, NumberDecrementStepper, Divider, Icon
 } from '@chakra-ui/react';
 import { FiUploadCloud } from 'react-icons/fi'; // Example icon
@@ -39,6 +39,31 @@ Upcoming Features & Potential Enhancements:
 */
 
 function Upload() {
+
+    // Define Preset Configurations
+  const presets = [
+    {
+      name: "Default (Custom)",
+      settings: { fps: 10, width: 320, includeAudio: false, speedFactor: 1.0, reverse: false, outputFormat: 'gif' } // Default matches initial states
+    },
+    {
+      name: "High-Quality GIF",
+      settings: { fps: 15, width: 480, includeAudio: false, speedFactor: 1.0, reverse: false, outputFormat: 'gif' }
+    },
+    {
+      name: "Small Email GIF",
+      settings: { fps: 8, width: 200, includeAudio: false, speedFactor: 1.0, reverse: false, outputFormat: 'gif' }
+    },
+    {
+      name: "Social Media MP4 (Short Clip)",
+      settings: { fps: 24, width: 720, includeAudio: true, speedFactor: 1.0, reverse: false, outputFormat: 'mp4' }
+    },
+    {
+      name: "Animated Emoji (Tiny GIF)",
+      settings: { fps: 10, width: 128, includeAudio: false, speedFactor: 1.0, reverse: false, outputFormat: 'gif' }
+    }
+  ];
+
   // File and URL states
   const [file, setFile] = useState(null);
   const [videoUrlInput, setVideoUrlInput] = useState('');
@@ -46,10 +71,19 @@ function Upload() {
   const [videoPlayerKey, setVideoPlayerKey] = useState(Date.now()); // Key for VideoPlayer
   const [videoSrc, setVideoSrc] = useState(null); // For local file preview
 
+
+  const [selectedPreset, setSelectedPreset] = useState(presets[0].name); // Default to the first preset
+
   // UI states
   const [message, setMessage] = useState({ text: '', type: 'info' }); // type: 'info', 'success', 'error'
   const [isDragging, setIsDragging] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // For general loading states
+  // const [isLoading, setIsLoading] = useState(false); // For general loading states - Replaced by specific loaders
+  const [isAnalyzing, setIsAnalyzing] = useState(false); // Specifically for the /analyze step
+  const [isUploading, setIsUploading] = useState(false); // Specifically for file upload
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isConverting, setIsConverting] = useState(false);
+  const [outputUrl, setOutputUrl] = useState(null); // To display the generated GIF or MP4 (renamed from gifUrl)
+
 
   // GIF Conversion settings states
   const [fps, setFps] = useState(10);
@@ -61,11 +95,13 @@ function Upload() {
   const [fontSize, setFontSize] = useState(20);
   const [textPosition, setTextPosition] = useState('center');
   const [textColor, setTextColor] = useState('white');
-  const [textBgColor, setTextBgColor] = useState(''); // Empty string for 'None'
+  const [textBgColor, setTextBgColor] = useState('');
   const [fontStyle, setFontStyle] = useState('Arial');
-  const [speedFactor, setSpeedFactor] = useState(1.0);
-  const [reverse, setReverse] = useState(false);
-  const [includeAudio, setIncludeAudio] = useState(false); // New state for audio inclusion
+  const [speedFactor, setSpeedFactor] = useState(presets[0].settings.speedFactor);
+  const [reverse, setReverse] = useState(presets[0].settings.reverse);
+  const [includeAudio, setIncludeAudio] = useState(presets[0].settings.includeAudio);
+  const [outputFormat, setOutputFormat] = useState(presets[0].settings.outputFormat);
+
   // Crop states (x, y, width, height) - null means not set/no crop
   const [cropX, setCropX] = useState(null);
   const [cropY, setCropY] = useState(null);
@@ -86,9 +122,10 @@ function Upload() {
     initialRect: null, // selectionRect at interaction start
   });
   const visualCropContainerRef = useRef(null);
-  const [gifUrl, setGifUrl] = useState(''); // URL of the converted GIF
+  // const [gifUrl, setGifUrl] = useState(''); // URL of the converted GIF - Replaced by outputUrl
 
   const fileInputRef = useRef(null);
+  const apiUrl = process.env.REACT_APP_API_URL;
 
   // Chakra UI color mode values
   const borderColor = useColorModeValue('gray.300', 'gray.600'); // For dropzone border
@@ -105,37 +142,53 @@ function Upload() {
   const settingsBoxBg = useColorModeValue('white', 'gray.750');
   const settingsHeadingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
   const resultHeadingColor = useColorModeValue('purple.600', 'purple.300');
+  const headingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
+  const selectBgColor = useColorModeValue("white", "gray.700"); // Moved here
+  const progressBoxBgColor = useColorModeValue("gray.50", "gray.700"); // For progress indicators
+
 
   const previousVideoSrcRef = useRef(null);
 
   // Cleanup for local video preview URL
   useEffect(() => {
-    // The current videoSrc at the time this effect runs
     const currentSrc = videoSrc;
-    // The videoSrc from the previous render (captured by the ref)
     const previousSrc = previousVideoSrcRef.current;
-
-    // If there was a previous blob URL, and it's different from the current one
-    // (or if the current one is null, indicating we're no longer using the previous blob),
-    // then revoke the previous blob URL.
     if (previousSrc && previousSrc.startsWith('blob:') && previousSrc !== currentSrc) {
       URL.revokeObjectURL(previousSrc);
     }
-
-    // Update the ref to the current videoSrc for the next render's comparison.
     previousVideoSrcRef.current = currentSrc;
-
-    // Cleanup on component unmount: if the last videoSrc was a blob, revoke it.
     return () => {
       if (previousVideoSrcRef.current && previousVideoSrcRef.current.startsWith('blob:')) {
         URL.revokeObjectURL(previousVideoSrcRef.current);
-        previousVideoSrcRef.current = null; // Clear ref on unmount
+        previousVideoSrcRef.current = null;
       }
     };
-  }, [videoSrc]); // Re-run this effect if videoSrc changes.
+  }, [videoSrc]);
 
-  const resetConversionStates = () => {
-    setGifUrl('');
+  const resetStatesForNewVideo = () => {
+    setVideoSrc(null);
+    setUploadedFilename('');
+    setVideoPlayerKey(Date.now());
+    setVideoDuration(0);
+    setTrim({ start: 0, end: 0 });
+    setScenePoints([]);
+    setCropX(null);
+    setCropY(null);
+    setCropW(null);
+    setCropH(null);
+    setShowVisualCropper(false);
+    setOutputUrl(null);
+    setIsUploading(false);
+    setUploadProgress(0);
+    setIsAnalyzing(false);
+    setIsConverting(false);
+    setMessage({ text: '', type: 'info' });
+    setSelectedPreset(presets[0].name); // Reset to default preset
+  };
+
+
+  const resetConversionStates = () => { // Kept for potential specific resets if needed
+    setOutputUrl('');
     setTrim({ start: 0, end: null });
     setScenePoints([]);
     setVideoDuration(0);
@@ -143,33 +196,63 @@ function Upload() {
     setCropY(null);
     setCropW(null);
     setCropH(null);
-    setShowVisualCropper(false); // Reset visual cropper state
-    // Optionally reset other GIF settings here if desired
+    setShowVisualCropper(false);
   };
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile && ['video/mp4', 'video/avi', 'video/quicktime', 'video/webm', 'video/x-matroska'].includes(selectedFile.type)) {
-      const newSrc = URL.createObjectURL(selectedFile);
-      setVideoSrc(newSrc);
+      resetStatesForNewVideo();
       setFile(selectedFile);
-      setMessage({ text: '', type: 'info' });
+      setVideoSrc(URL.createObjectURL(selectedFile)); // Show local preview immediately
+      setVideoPlayerKey(Date.now()); // Ensure player updates for local preview
+
+      const formData = new FormData();
+      formData.append('video', selectedFile);
+
+      setMessage({ text: 'Uploading video...', type: 'info' });
       setUploadedFilename('');
-      resetConversionStates();
-      const video = document.createElement('video');
-      video.preload = 'metadata';
-      video.src = newSrc;
-      video.onloadedmetadata = () => {
-        setVideoDuration(video.duration);
-        setTrim({ start: 0, end: video.duration });
-        // Call handleVideoMetadata here as well for local files
-        handleVideoMetadata({
-            width: video.videoWidth,
-            height: video.videoHeight,
-            naturalWidth: video.videoWidth,
-            naturalHeight: video.videoHeight
-        });
-      };
+      setVideoDuration(0);
+      setOutputUrl(null);
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      axios.post(`${apiUrl}/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        },
+      })
+      .then(response => {
+        setUploadedFilename(response.data.filename);
+        setMessage({ text: 'Video uploaded. Ready to process or convert.', type: 'success' });
+        // Local preview is already showing. /analyze will use the uploadedFilename.
+        // Get initial duration for local preview
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.src = URL.createObjectURL(selectedFile); // Use the same local blob
+        video.onloadedmetadata = () => {
+          setVideoDuration(video.duration);
+          setTrim({ start: 0, end: video.duration });
+          handleVideoMetadata({
+              width: video.videoWidth,
+              height: video.videoHeight,
+              naturalWidth: video.videoWidth,
+              naturalHeight: video.videoHeight
+          });
+        };
+      })
+      .catch(error => {
+        console.error("Error uploading file:", error.response ? error.response.data : error.message);
+        setMessage({ text: `Upload failed: ${error.response ? error.response.data.error : error.message}`, type: 'error' });
+        setFile(null);
+        setVideoSrc(null);
+      })
+      .finally(() => {
+        setIsUploading(false);
+        // setUploadProgress(0); // Or let it stay at 100
+      });
       setVideoUrlInput(''); // Clear URL input
     } else {
       setFile(null);
@@ -177,6 +260,7 @@ function Upload() {
       setMessage({ text: 'Please select a valid video file (MP4, AVI, MOV, WEBM, MKV).', type: 'error' });
     }
   };
+
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -191,206 +275,128 @@ function Upload() {
     e.preventDefault();
     setIsDragging(false);
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && ['video/mp4', 'video/avi', 'video/quicktime', 'video/webm', 'video/x-matroska'].includes(droppedFile.type)) {
-      const newSrc = URL.createObjectURL(droppedFile);
-      setVideoSrc(newSrc);
-      setFile(droppedFile);
-      setMessage({ text: '', type: 'info' });
-      setUploadedFilename('');
-      resetConversionStates();
-      const video = document.createElement('video');
-      video.preload = 'metadata';
-      video.src = newSrc;
-      video.onloadedmetadata = () => {
-        setVideoDuration(video.duration);
-        setTrim({ start: 0, end: video.duration });
-         // Call handleVideoMetadata here as well for local files
-        handleVideoMetadata({
-            width: video.videoWidth,
-            height: video.videoHeight,
-            naturalWidth: video.videoWidth,
-            naturalHeight: video.videoHeight
-        });
-      };
-      setVideoUrlInput(''); // Clear URL input
+    // Simulate file selection to reuse handleFileChange logic
+    if (droppedFile) {
+        const mockEvent = { target: { files: [droppedFile] } };
+        handleFileChange(mockEvent);
     } else {
-      setFile(null);
-      setVideoSrc(null);
-      setMessage({ text: 'Please drop a valid video file (MP4, AVI, MOV, WEBM, MKV).', type: 'error' });
+      setMessage({ text: 'Please drop a valid video file.', type: 'error' });
     }
   };
 
-  const handleProcessVideo = async () => {
-    if (!file && !videoUrlInput) {
-      setMessage({ text: 'Please select a file or enter a video URL.', type: 'error' });
+  const handleProcessUrl = () => {
+    if (!videoUrlInput.trim()) {
+      setMessage({ text: 'Please enter a video URL.', type: 'error' });
       return;
     }
-    setIsLoading(true);
-    setMessage({ text: 'Processing video...', type: 'info' });
-    setUploadedFilename(''); // Reset before new processing
-    resetConversionStates();
+    resetStatesForNewVideo();
+    setMessage({ text: 'Processing URL...', type: 'info' });
+    setUploadedFilename('');
+    setVideoDuration(0);
+    setOutputUrl(null);
+    setIsAnalyzing(true); // Use isAnalyzing for URL processing as it leads to analysis
 
-    let filenameToProcess;
-
-    if (file) {
-      const formData = new FormData();
-      formData.append('video', file);
-      try {
-        const uploadResponse = await axios.post(`${process.env.REACT_APP_API_URL}/upload`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        filenameToProcess = uploadResponse.data.filename;
-        setUploadedFilename(filenameToProcess); // Set for analyze step
-        setMessage({ text: `File uploaded: ${filenameToProcess}`, type: 'success' });
-        setFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        // videoSrc is kept for preview until analysis is done
-      } catch (error) {
-        setMessage({ text: `File Upload failed: ${error.response?.data?.message || 'Server error'}`, type: 'error' });
-        setIsLoading(false);
-        return;
-      }
-    } else if (videoUrlInput) {
-      try {
-        const processUrlResponse = await axios.post(`${process.env.REACT_APP_API_URL}/process-url`, {
-          url: videoUrlInput,
-        });
-        filenameToProcess = processUrlResponse.data.filename;
-        setUploadedFilename(filenameToProcess); // Set for analyze step
-        setMessage({ text: `Video from URL processed: ${filenameToProcess}`, type: 'success' });
-        setVideoUrlInput('');
-        setVideoSrc(null); // No local preview for URL-based videos
-      } catch (error) {
-        setMessage({ text: `URL Processing failed: ${error.response?.data?.message || 'Server error'}`, type: 'error' });
-        setIsLoading(false);
-        return;
-      }
-    }
-
-    if (filenameToProcess) {
-      try {
-        setMessage({ text: 'Analyzing video...', type: 'info' });
-        // Capture videoSrc before analysis, in case it's a local blob URL we want to preserve
-        const videoSrcPriorToAnalysis = videoSrc;
-
-        const analyzeResponse = await axios.post(`${process.env.REACT_APP_API_URL}/analyze`, {
-          filename: filenameToProcess,
-        });
-
-        const backendPreviewUrl = analyzeResponse.data.preview_url;
-        // Always update duration, scenes, and trim from analysis data
-        setScenePoints(analyzeResponse.data.scenes);
-        setVideoDuration(analyzeResponse.data.duration);
-        setTrim({ start: 0, end: analyzeResponse.data.duration });
-
-        if (backendPreviewUrl) {
-          setVideoSrc(backendPreviewUrl);
-        } else if (videoSrcPriorToAnalysis && videoSrcPriorToAnalysis.startsWith('blob:')) {
-          // If no new URL from backend, but we had a local blob (e.g., from file upload),
-          // ensure videoSrc is still set to that blob.
-          // If videoSrc was cleared (e.g. during URL processing path), restore it.
-          if (videoSrc !== videoSrcPriorToAnalysis) {
-            setVideoSrc(videoSrcPriorToAnalysis);
-          }
-        } else {
-          // No backend URL and no prior local blob (e.g., from URL input path that cleared videoSrc)
-          setVideoSrc(null); // Or setVideoSrc(backendPreviewUrl) which would be falsy
-        }
-        setMessage({ text: `Video analyzed successfully. Ready to convert.`, type: 'success' });
-      } catch (error) {
-        setMessage({ text: `Analysis failed: ${error.response?.data?.message || 'Server error'}`, type: 'error' });
-        setUploadedFilename(''); // Clear if analysis fails
-      }
-    }
-    setVideoPlayerKey(Date.now()); // Update key to force VideoPlayer re-render
-    setIsLoading(false);
+    axios.post(`${apiUrl}/process-url`, { url: videoUrlInput })
+      .then(response => {
+        setUploadedFilename(response.data.filename);
+        setMessage({ text: `Video from URL processed: ${response.data.filename}. Ready to analyze.`, type: 'success' });
+        // Trigger analysis after successful URL processing
+        handleAnalyzeVideo(response.data.filename);
+      })
+      .catch(error => {
+        console.error("Error processing URL:", error.response ? error.response.data : error.message);
+        setMessage({ text: `URL processing failed: ${error.response ? error.response.data.error : error.message}`, type: 'error' });
+        setIsAnalyzing(false); // Stop analyzing if URL processing fails
+      });
   };
+
+  // Renamed from handleProcessVideo to be more specific
+  const handleAnalyzeVideo = async (filenameToAnalyze = uploadedFilename) => {
+    if (!filenameToAnalyze) {
+      setMessage({ text: 'No video selected or processed to analyze.', type: 'error' });
+      return;
+    }
+    setMessage({ text: 'Analyzing video...', type: 'info' });
+    const videoSrcPriorToAnalysis = videoSrc;
+    setOutputUrl(null);
+    setIsAnalyzing(true);
+
+    try {
+      const analyzeResponse = await axios.post(`${apiUrl}/analyze`, { filename: filenameToAnalyze });
+      setVideoDuration(analyzeResponse.data.duration);
+      setScenePoints(analyzeResponse.data.scenes || []);
+      setTrim({ start: 0, end: analyzeResponse.data.duration });
+
+      const backendPreviewUrl = analyzeResponse.data.preview_url;
+      if (backendPreviewUrl) {
+        setVideoSrc(backendPreviewUrl);
+      } else if (videoSrcPriorToAnalysis && videoSrcPriorToAnalysis.startsWith('blob:')) {
+        if (videoSrc !== videoSrcPriorToAnalysis) {
+          setVideoSrc(videoSrcPriorToAnalysis);
+        }
+      } else {
+        setVideoSrc(null);
+      }
+      setMessage({ text: `Video analyzed successfully. Ready to convert.`, type: 'success' });
+    } catch (error) {
+      console.error("Error analyzing video:", error.response ? error.response.data : error.message);
+      setMessage({ text: `Analysis failed: ${error.response ? error.response.data.error : error.message}`, type: 'error' });
+      setUploadedFilename('');
+    } finally {
+      setVideoPlayerKey(Date.now());
+      setIsAnalyzing(false);
+    }
+  };
+
 
   const handleConvert = async () => {
     if (!uploadedFilename) {
       setMessage({ text: 'Please upload or process a video first.', type: 'error' });
       return;
     }
-    setIsLoading(true);
-    setMessage({ text: 'Converting...', type: 'info' }); // Generic "Converting..."
-    setGifUrl(''); // Clear previous GIF/video
+    setMessage({ text: 'Starting conversion...', type: 'info' });
+    setOutputUrl(null);
+    setIsConverting(true);
+
+    const conversionSettings = {
+      filename: uploadedFilename,
+      fps,
+      width,
+      start_time: trim.start,
+      end_time: trim.end,
+      text: textOverlay || null,
+      font_size: fontSize,
+      text_position: textPosition,
+      text_color: textColor,
+      text_bg_color: textBgColor || null,
+      font_style: fontStyle,
+      speed_factor: speedFactor,
+      reverse: reverse,
+      include_audio: outputFormat === 'mp4' ? includeAudio : false, // Only include audio if output is MP4
+      output_format: includeAudio ? 'mp4' : 'gif', // Determine format based on audio
+      crop_x: cropX,
+      crop_y: cropY,
+      crop_w: cropW,
+      crop_h: cropH,
+    };
+    setOutputFormat(includeAudio ? 'mp4' : 'gif'); // Update outputFormat state for UI text
 
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/convert`, {
-        filename: uploadedFilename,
-        fps,
-        width,
-        start: trim.start,
-        end: trim.end,
-        text: textOverlay || null, // Send null if empty
-        font_size: fontSize,
-        text_position: textPosition,
-        text_color: textColor,
-        text_bg_color: textBgColor || null, // Send null if empty string (None)
-        font_style: fontStyle,
-        speed_factor: speedFactor,
-        reverse: reverse,
-        include_audio: includeAudio, // Send audio preference to backend
-        crop_x: cropX,
-        crop_y: cropY,
-        crop_w: cropW,
-        crop_h: cropH,
-      });
-      const outputType = includeAudio ? 'Video' : 'GIF';
-      setMessage({ text: `Success: Converted to ${outputType}. File: ${response.data.filename}`, type: 'success' });
-      setGifUrl(response.data.url);
+      const response = await axios.post(`${apiUrl}/convert`, conversionSettings);
+      setMessage({ text: `Successfully converted to ${outputFormat.toUpperCase()}!`, type: 'success' });
+      setOutputUrl(response.data.url);
+      setVideoPlayerKey(Date.now());
     } catch (error) {
-      setMessage({ text: `Conversion failed: ${error.response?.data?.message || 'Server error'}`, type: 'error' });
+      console.error("Error converting video:", error.response ? error.response.data : error.message);
+      setMessage({ text: `Conversion failed: ${error.response ? error.response.data.error : error.message}`, type: 'error' });
+    } finally {
+      setIsConverting(false);
     }
-    setIsLoading(false);
   };
 
   const handleTrimChange = ({ start, end }) => {
     setTrim({ start, end });
   };
-
-  const handleVisualCropChange = useCallback((newRect) => {
-    const minDimension = 10; // Minimum width/height for crop in original pixels
-    const validatedRect = {
-        x: Math.round(newRect.x ?? 0),
-        y: Math.round(newRect.y ?? 0),
-        width: Math.round(newRect.width ?? minDimension),
-        height: Math.round(newRect.height ?? minDimension),
-        selectionNaturalWidth: newRect.selectionNaturalWidth,
-        selectionNaturalHeight: newRect.selectionNaturalHeight,
-    };
-
-    // Ensure dimensions are at least minDimension
-    validatedRect.width = Math.max(minDimension, validatedRect.width);
-    validatedRect.height = Math.max(minDimension, validatedRect.height);
-
-    // Boundary checks against natural dimensions
-    if (validatedRect.selectionNaturalWidth > 0 && validatedRect.selectionNaturalHeight > 0) {
-        validatedRect.x = Math.max(0, validatedRect.x);
-        validatedRect.y = Math.max(0, validatedRect.y);
-
-        // Adjust x/y if width/height pushes it out of bounds
-        if (validatedRect.x + validatedRect.width > validatedRect.selectionNaturalWidth) {
-            validatedRect.x = validatedRect.selectionNaturalWidth - validatedRect.width;
-        }
-        if (validatedRect.y + validatedRect.height > validatedRect.selectionNaturalHeight) {
-            validatedRect.y = validatedRect.selectionNaturalHeight - validatedRect.height;
-        }
-        // Re-check after adjustment, ensure x,y are not negative if width/height is larger than naturalDim
-        validatedRect.x = Math.max(0, validatedRect.x);
-        validatedRect.y = Math.max(0, validatedRect.y);
-
-        // Ensure width/height do not exceed natural dimensions from the current x/y
-        validatedRect.width = Math.min(validatedRect.width, validatedRect.selectionNaturalWidth - validatedRect.x);
-        validatedRect.height = Math.min(validatedRect.height, validatedRect.selectionNaturalHeight - validatedRect.y);
-    }
-
-    setCropX(validatedRect.x);
-    setCropY(validatedRect.y);
-    setCropW(validatedRect.width);
-    setCropH(validatedRect.height);
-    setSelectionRect(validatedRect);
-  }, [/* stable: only calls setters */]);
 
   const handleVideoMetadata = useCallback(({ width, height, naturalWidth, naturalHeight }) => {
     setVideoPreviewDimensions({ width, height, naturalWidth, naturalHeight });
@@ -415,79 +421,103 @@ function Upload() {
             selectionNaturalWidth: 0, selectionNaturalHeight: 0
         });
     }
-  }, [handleVisualCropChange]);
+  }, [/* handleVisualCropChange will be defined below or needs to be memoized if passed as prop */]);
 
-  // Effect for handling global mouse move and up for drag/resize
+
+  const handleVisualCropChange = useCallback((newRect) => {
+    const minDimension = 10;
+    const validatedRect = {
+        x: Math.round(newRect.x ?? 0),
+        y: Math.round(newRect.y ?? 0),
+        width: Math.round(newRect.width ?? minDimension),
+        height: Math.round(newRect.height ?? minDimension),
+        selectionNaturalWidth: newRect.selectionNaturalWidth,
+        selectionNaturalHeight: newRect.selectionNaturalHeight,
+    };
+
+    validatedRect.width = Math.max(minDimension, validatedRect.width);
+    validatedRect.height = Math.max(minDimension, validatedRect.height);
+
+    if (validatedRect.selectionNaturalWidth > 0 && validatedRect.selectionNaturalHeight > 0) {
+        validatedRect.x = Math.max(0, validatedRect.x);
+        validatedRect.y = Math.max(0, validatedRect.y);
+
+        if (validatedRect.x + validatedRect.width > validatedRect.selectionNaturalWidth) {
+            validatedRect.x = validatedRect.selectionNaturalWidth - validatedRect.width;
+        }
+        if (validatedRect.y + validatedRect.height > validatedRect.selectionNaturalHeight) {
+            validatedRect.y = validatedRect.selectionNaturalHeight - validatedRect.height;
+        }
+        validatedRect.x = Math.max(0, validatedRect.x);
+        validatedRect.y = Math.max(0, validatedRect.y);
+
+        validatedRect.width = Math.min(validatedRect.width, validatedRect.selectionNaturalWidth - validatedRect.x);
+        validatedRect.height = Math.min(validatedRect.height, validatedRect.selectionNaturalHeight - validatedRect.y);
+    }
+
+    setCropX(validatedRect.x);
+    setCropY(validatedRect.y);
+    setCropW(validatedRect.width);
+    setCropH(validatedRect.height);
+    setSelectionRect(validatedRect);
+  }, []);
+
+
   useEffect(() => {
     if (!interaction.type || !visualCropContainerRef.current) return;
-
     const containerRect = visualCropContainerRef.current.getBoundingClientRect();
-
     const handleDocumentMouseMove = (e) => {
       e.preventDefault();
       const mouseXInContainer = e.clientX - containerRect.left;
       const mouseYInContainer = e.clientY - containerRect.top;
-
       const { initialRect, startX, startY, type, handle } = interaction;
       if (!initialRect) return;
-
       const displayWidth = videoPreviewDimensions.width;
       const displayHeight = videoPreviewDimensions.height;
       const naturalWidth = initialRect.selectionNaturalWidth;
       const naturalHeight = initialRect.selectionNaturalHeight;
-
       if (displayWidth === 0 || displayHeight === 0 || naturalWidth === 0 || naturalHeight === 0) return;
-
       const scaleX = naturalWidth / displayWidth;
       const scaleY = naturalHeight / displayHeight;
-
       const deltaXOriginal = (mouseXInContainer - startX) * scaleX;
       const deltaYOriginal = (mouseYInContainer - startY) * scaleY;
-
       let newRect = { ...initialRect };
-
       if (type === 'drag') {
         newRect.x = Math.round(initialRect.x + deltaXOriginal);
         newRect.y = Math.round(initialRect.y + deltaYOriginal);
       } else if (type === 'resize') {
         const { x: ix, y: iy, width: iw, height: ih } = initialRect;
-        const minDim = 10; // Minimum dimension in original pixels for crop
-
-        // Horizontal changes
-        if (handle.includes('e')) { // East handles (ne, e, se)
+        const minDim = 10;
+        if (handle.includes('e')) {
           newRect.width = Math.max(minDim, Math.round(iw + deltaXOriginal));
         }
-        if (handle.includes('w')) { // West handles (nw, w, sw)
+        if (handle.includes('w')) {
           const newWidth = Math.max(minDim, Math.round(iw - deltaXOriginal));
-          newRect.x = Math.round(ix + (iw - newWidth)); // Adjust x to account for width change from left
+          newRect.x = Math.round(ix + (iw - newWidth));
           newRect.width = newWidth;
         }
-
-        // Vertical changes
-        if (handle.includes('s')) { // South handles (sw, s, se)
+        if (handle.includes('s')) {
           newRect.height = Math.max(minDim, Math.round(ih + deltaYOriginal));
         }
-        if (handle.includes('n')) { // North handles (nw, n, ne)
+        if (handle.includes('n')) {
           const newHeight = Math.max(minDim, Math.round(ih - deltaYOriginal));
-          newRect.y = Math.round(iy + (ih - newHeight)); // Adjust y to account for height change from top
+          newRect.y = Math.round(iy + (ih - newHeight));
           newRect.height = newHeight;
         }
       }
       handleVisualCropChange(newRect);
     };
-
     const handleDocumentMouseUp = (e) => {
       e.preventDefault();
       setInteraction({ type: null, handle: null, startX: 0, startY: 0, initialRect: null });
     };
-
     document.addEventListener('mousemove', handleDocumentMouseMove);
     document.addEventListener('mouseup', handleDocumentMouseUp);
     return () => {
       document.removeEventListener('mousemove', handleDocumentMouseMove);
       document.removeEventListener('mouseup', handleDocumentMouseUp);
     };
-  }, [interaction, videoPreviewDimensions, handleVisualCropChange]); // Keeping videoPreviewDimensions as a whole object dependency
+  }, [interaction, videoPreviewDimensions, handleVisualCropChange]);
 
   const startInteraction = (e, type, handle = 'body') => {
     e.preventDefault();
@@ -500,9 +530,49 @@ function Upload() {
   };
 
   const fontStyleOptions = ["Arial", "Times New Roman", "Courier New", "Verdana", "Georgia", "Comic Sans MS"];
-    // Prepare liveTextOverlay props for the preview player
-  // This should be defined within the component's render logic but before the return statement
-  const liveTextOverlayProps = (textOverlay && videoSrc && !gifUrl && !showVisualCropper) ? {
+
+    // Handler for preset selection
+  const handlePresetChange = (e) => {
+    const presetName = e.target.value;
+    setSelectedPreset(presetName);
+    const preset = presets.find(p => p.name === presetName);
+    if (preset) {
+      setFps(preset.settings.fps);
+      setWidth(preset.settings.width);
+      setIncludeAudio(preset.settings.includeAudio);
+      setSpeedFactor(preset.settings.speedFactor);
+      setReverse(preset.settings.reverse);
+      setOutputFormat(preset.settings.includeAudio ? 'mp4' : 'gif'); // Update outputFormat based on preset's audio
+      // Note: Trim, Crop, and Text Overlay are not typically part of presets, so they are not reset here.
+    }
+  };
+
+  // Loading and Progress Indicators Section
+  let progressIndicator = null;
+  if (isUploading) {
+    progressIndicator = (
+      <Box my={4} p={3} borderWidth="1px" borderRadius="lg" bg={progressBoxBgColor}>
+        <Text mb={1} fontSize="sm">Uploading: {uploadProgress}%</Text>
+        <Progress value={uploadProgress} size="sm" colorScheme="blue" hasStripe isAnimated={uploadProgress < 100} />
+      </Box>
+    );
+  } else if (isAnalyzing) {
+    progressIndicator = (
+      <Box my={4} p={3} borderWidth="1px" borderRadius="lg" bg={progressBoxBgColor}>
+        <Text mb={1} fontSize="sm">Analyzing video...</Text>
+        <Progress size="sm" isIndeterminate colorScheme="purple" />
+      </Box>
+    );
+  } else if (isConverting) {
+    progressIndicator = (
+      <Box my={4} p={3} borderWidth="1px" borderRadius="lg" bg={progressBoxBgColor}>
+        <Text mb={1} fontSize="sm">Converting video...</Text>
+        <Progress size="sm" isIndeterminate colorScheme="green" />
+      </Box>
+    );
+  }
+
+  const liveTextOverlayProps = (textOverlay && videoSrc && !outputUrl && !showVisualCropper) ? {
     text: textOverlay,
     fontSize: fontSize,
     position: textPosition,
@@ -516,7 +586,6 @@ function Upload() {
       <Heading as="h2" size="xl" mb={8} textAlign="center" fontWeight="bold">
         Video to GIF & MP4 Converter
       </Heading>
-
       {message.text && (
         <Alert status={message.type} borderRadius="md" mb={6} variant="subtle">
           <AlertIcon />
@@ -529,6 +598,9 @@ function Upload() {
           <CloseButton onClick={() => setMessage({ text: '', type: 'info' })} position="absolute" right="8px" top="8px" />
         </Alert>
       )}
+      {/* Display Progress Indicators */}
+      {progressIndicator}
+
 
       <VStack spacing={6} align="stretch" mb={8}>
         <Box
@@ -544,7 +616,7 @@ function Upload() {
           onDrop={handleDrop}
           _hover={{ borderColor: dropZoneHoverBorder, cursor: 'pointer' }}
           transition="all 0.3s ease-in-out"
-          onClick={() => fileInputRef.current && fileInputRef.current.click()} // Make entire box clickable
+          onClick={() => fileInputRef.current && fileInputRef.current.click()}
         >
           <Icon as={FiUploadCloud} w={12} h={12} color={labelColor} mb={3} />
           <Text color={labelColor} mb={4} fontSize="lg">
@@ -591,7 +663,7 @@ function Upload() {
               if (e.target.value) {
                 setFile(null);
                 if (fileInputRef.current) fileInputRef.current.value = '';
-                resetConversionStates();
+                // resetConversionStates(); // Full reset might be too much here, let resetStatesForNewVideo handle it in handleProcessUrl
                 setUploadedFilename('');
               }
             }}
@@ -601,82 +673,86 @@ function Upload() {
         </FormControl>
 
         <Button
-          onClick={handleProcessVideo}
-          isDisabled={(!file && !videoUrlInput) || isLoading}
+          onClick={file ? () => handleAnalyzeVideo() : handleProcessUrl} // Decide action based on input
+          isDisabled={(!file && !videoUrlInput) || isUploading || isAnalyzing || isConverting}
           colorScheme="green"
           size="lg"
           w="full"
-          isLoading={isLoading && !gifUrl && !uploadedFilename} // Show spinner only during initial processing
+          isLoading={isUploading || (isAnalyzing && !outputUrl)} // Show spinner during upload or initial analysis
           spinner={<Spinner size="md" />}
-          leftIcon={isLoading && !gifUrl && !uploadedFilename ? undefined : <Icon as={FiUploadCloud} />}
+          leftIcon={(isUploading || (isAnalyzing && !outputUrl)) ? undefined : <Icon as={FiUploadCloud} />}
         >
-          {isLoading && !gifUrl && !uploadedFilename ? 'Processing...' : 'Process Video'}
+          {(isUploading || (isAnalyzing && !outputUrl)) ? 'Processing...' : 'Process Video'}
         </Button>
       </VStack>
 
-       {/* Video Preview Area - show if videoSrc is available and no GIF is generated, OR if visual cropper is active */}
-      {(videoSrc && !gifUrl && !showVisualCropper) && (
+      {/* Preset Selection Dropdown - Placed before detailed settings */}
+      {uploadedFilename && videoDuration > 0 && (
+        <FormControl mb={8} id="preset-selection">
+          <FormLabel htmlFor="presetSelect" color={labelColor} fontWeight="medium">Quick Presets</FormLabel>
+          <Select id="presetSelect" value={selectedPreset} onChange={handlePresetChange} focusBorderColor="blue.500" size="lg" bg={selectBgColor}>
+            {presets.map(preset => (
+              <option key={preset.name} value={preset.name}>
+                {preset.name}
+              </option>
+            ))}
+          </Select>
+        </FormControl>
+      )}
+
+       {/* Video Preview Area - show if videoSrc is available and no outputUrl is generated, OR if visual cropper is active */}
+      {(videoSrc && !outputUrl && !showVisualCropper) && (
         <VideoPlayer
-          key={videoPlayerKey} // Add key here
+          key={videoPlayerKey}
           src={videoSrc}
           onMetadataLoaded={handleVideoMetadata}
           liveTextOverlay={liveTextOverlayProps}
         />
       )}
 
-      {showVisualCropper && videoSrc && videoPreviewDimensions.naturalWidth > 0 && (
+      {showVisualCropper && videoSrc && videoPreviewDimensions.naturalWidth > 0 && !isUploading && !isAnalyzing && !isConverting && (
         <Box my={4} p={4} borderWidth="1px" borderRadius="lg" borderColor="blue.500">
             <Heading size="md" mb={2}>Visual Crop</Heading>
             <Text mb={2}>Video Dimensions: {videoPreviewDimensions.naturalWidth}x{videoPreviewDimensions.naturalHeight} (Original)</Text>
             <Text mb={4}>Displayed Preview Dimensions: {videoPreviewDimensions.width}x{videoPreviewDimensions.height}</Text>
-            {/* 
-              This is where you would integrate a visual cropping component.
-              It would receive `videoSrc`, `videoPreviewDimensions`, `selectionRect`, 
-              and call `handleVisualCropChange` on interaction.
-              Example: <VisualCropperComponent videoSrc={videoSrc} dimensions={videoPreviewDimensions} initialSelection={selectionRect} onSelectionChange={handleVisualCropChange} />
-            */}
             <Box
                 position="relative"
-                width={`${videoPreviewDimensions.width}px`} // Match displayed video width
-                height={`${videoPreviewDimensions.height}px`} // Match displayed video height
-                mx="auto" // Center it
+                width={`${videoPreviewDimensions.width}px`}
+                height={`${videoPreviewDimensions.height}px`}
+                mx="auto"
                 border="2px dashed gray"
                 ref={visualCropContainerRef}
-                overflow="hidden" // Important if video itself is larger than this box
+                overflow="hidden"
             >
                 <video
                     src={videoSrc}
                     style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain' }}
-                    controls={false} // No controls for the cropper background
+                    controls={false}
                     autoPlay={false}
                     muted
                 />
-                {/* Draggable and Resizable Selection Box */}
                 <Box
                     position="absolute"
                     border="2px solid blue"
                     bg="rgba(0,0,255,0.2)"
                     style={{
-                        left: videoPreviewDimensions.width > 0 ? `${(selectionRect.x / selectionRect.selectionNaturalWidth) * videoPreviewDimensions.width}px` : '0px',
-                        top: videoPreviewDimensions.height > 0 ? `${(selectionRect.y / selectionRect.selectionNaturalHeight) * videoPreviewDimensions.height}px` : '0px',
-                        width: videoPreviewDimensions.width > 0 ? `${(selectionRect.width / selectionRect.selectionNaturalWidth) * videoPreviewDimensions.width}px` : '0px',
-                        height: videoPreviewDimensions.height > 0 ? `${(selectionRect.height / selectionRect.selectionNaturalHeight) * videoPreviewDimensions.height}px` : '0px',
+                        left: videoPreviewDimensions.width > 0 && selectionRect.selectionNaturalWidth > 0 ? `${(selectionRect.x / selectionRect.selectionNaturalWidth) * videoPreviewDimensions.width}px` : '0px',
+                        top: videoPreviewDimensions.height > 0 && selectionRect.selectionNaturalHeight > 0 ? `${(selectionRect.y / selectionRect.selectionNaturalHeight) * videoPreviewDimensions.height}px` : '0px',
+                        width: videoPreviewDimensions.width > 0 && selectionRect.selectionNaturalWidth > 0 ? `${(selectionRect.width / selectionRect.selectionNaturalWidth) * videoPreviewDimensions.width}px` : '0px',
+                        height: videoPreviewDimensions.height > 0 && selectionRect.selectionNaturalHeight > 0 ? `${(selectionRect.height / selectionRect.selectionNaturalHeight) * videoPreviewDimensions.height}px` : '0px',
                         cursor: 'move',
-                        display: (selectionRect.width <=0 || selectionRect.height <=0) ? 'none' : 'block', // Hide if invalid rect
+                        display: (selectionRect.width <=0 || selectionRect.height <=0) ? 'none' : 'block',
                     }}
                     onMouseDown={(e) => startInteraction(e, 'drag')}
                 >
-                    {/* Resize Handles */}
                     {['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'].map(handleName => {
-                        const handleSize = "12px"; // Increased size for better visibility
-                        const handleOffset = "-6px"; // To center handles on the border
+                        const handleSize = "12px";
+                        const handleOffset = "-6px";
                         let handleStyle = {};
-
                         if (handleName.includes('n')) handleStyle.top = handleOffset;
                         if (handleName.includes('s')) handleStyle.bottom = handleOffset;
                         if (handleName.includes('w')) handleStyle.left = handleOffset;
                         if (handleName.includes('e')) handleStyle.right = handleOffset;
-
                         if (handleName === 'n' || handleName === 's') {
                             handleStyle.left = '50%';
                             handleStyle.transform = 'translateX(-50%)';
@@ -685,30 +761,27 @@ function Upload() {
                             handleStyle.top = '50%';
                             handleStyle.transform = 'translateY(-50%)';
                         }
-                        
                         if (handleName === 'nw') { handleStyle.cursor = 'nwse-resize'; }
                         else if (handleName === 'ne') { handleStyle.cursor = 'nesw-resize'; }
                         else if (handleName === 'sw') { handleStyle.cursor = 'nesw-resize'; }
                         else if (handleName === 'se') { handleStyle.cursor = 'nwse-resize'; }
                         else if (handleName === 'n' || handleName === 's') { handleStyle.cursor = 'ns-resize'; }
                         else if (handleName === 'w' || handleName === 'e') { handleStyle.cursor = 'ew-resize'; }
-
                         return (
                             <Box
                                 key={handleName}
                                 position="absolute"
                                 width={handleSize}
                                 height={handleSize}
-                                bg="blue.600" // Darker blue for better visibility
-                                border="1px solid white" // Border for contrast
-                                borderRadius="2px" // Slightly rounded
+                                bg="blue.600"
+                                border="1px solid white"
+                                borderRadius="2px"
                                 style={handleStyle}
                                 onMouseDown={(e) => startInteraction(e, 'resize', handleName)}
                             />
                         );
                     })}
                 </Box>
-
             </Box>
             <Text mt={2} fontSize="sm">Current Crop (Original Dims): X={cropX ?? 0}, Y={cropY ?? 0}, W={cropW ?? 0}, H={cropH ?? 0}</Text>
         </Box>
@@ -723,8 +796,8 @@ function Upload() {
           <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" mb={8} bg={settingsBoxBg} id="trim-section">
             <TrimSlider
               duration={videoDuration}
-              value={trim} // Pass the trim state
-              onTrimChange={handleTrimChange} // Use the updated handler
+              // value={trim} // TrimSlider manages its own internal start/end based on duration
+              onTrimChange={handleTrimChange}
               scenes={scenePoints}
             />
           </Box>
@@ -767,7 +840,7 @@ function Upload() {
                 onClick={() => setShowVisualCropper(!showVisualCropper)}
                 colorScheme={showVisualCropper ? "orange" : "blue"}
                 mb={4}
-                isDisabled={!videoSrc || videoPreviewDimensions.naturalWidth === 0}
+                isDisabled={!videoSrc || videoPreviewDimensions.naturalWidth === 0 || isUploading || isAnalyzing || isConverting}
               >
                 {showVisualCropper ? "Hide Visual Cropper & Use Numerical Inputs" : "Visually Select Crop Area"}
               </Button>
@@ -882,36 +955,38 @@ function Upload() {
             colorScheme="purple"
             size="lg"
             w="full"
-            isLoading={isLoading && !!uploadedFilename && !gifUrl} // Show spinner only during conversion
+            isLoading={isConverting}
             spinner={<Spinner size="md" />}
-            leftIcon={isLoading && !!uploadedFilename && !gifUrl ? undefined : <Icon as={FiUploadCloud} transform="rotate(90deg)" />} // Example icon
+            leftIcon={isConverting ? undefined : <Icon as={FiUploadCloud} transform="rotate(90deg)" />}
+            isDisabled={isUploading || isAnalyzing || isConverting}
           >
-            {isLoading && !!uploadedFilename && !gifUrl ? 'Converting...' : `Convert to ${includeAudio ? 'MP4' : 'GIF'}`}
+            {isConverting ? 'Converting...' : `Convert to ${outputFormat.toUpperCase()}`}
           </Button>
         </Box>
       )}
 
-      {gifUrl && (
+      {outputUrl && (
         <Box mt={10} p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="xl" bg={gifResultBoxBg}>
           <Heading as="h3" size="lg" mb={6} textAlign="center" color={resultHeadingColor}>
-            Your {includeAudio ? 'Video' : 'GIF'} is Ready!
+            Your {outputFormat.toUpperCase()} is Ready!
           </Heading>
           <Box borderRadius="md" overflow="hidden">
             <Center>
-              {includeAudio ? (
+              {outputFormat === 'mp4' ? (
                 <VideoPlayer
-                  key={gifUrl} // Use gifUrl as key for re-render if it changes
-                  src={gifUrl}
-                  onMetadataLoaded={() => {}} // Pass dummy if not needed for result
+                  key={outputUrl}
+                  src={outputUrl}
+                  onMetadataLoaded={() => {}}
+                  liveTextOverlay={null}
                 />
               ) : (
-                <Image src={gifUrl} alt={`Converted ${includeAudio ? 'Video' : 'GIF'}`} maxW="full" borderRadius="md" />
+                <Image src={outputUrl} alt={`Converted ${outputFormat.toUpperCase()}`} maxW="full" borderRadius="md" />
               )}
             </Center>
           </Box>
-          <Link href={gifUrl} download isExternal _hover={{textDecoration: 'none'}}>
+          <Link href={outputUrl} download isExternal _hover={{textDecoration: 'none'}}>
             <Button colorScheme="teal" size="lg" w="full" mt={6} leftIcon={<Icon as={FiUploadCloud} transform="rotate(180deg)" />}>
-              Download {includeAudio ? 'Video' : 'GIF'}
+              Download {outputFormat.toUpperCase()}
             </Button>
           </Link>
         </Box>
