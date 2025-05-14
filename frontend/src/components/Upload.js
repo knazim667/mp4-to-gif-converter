@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import VideoPlayer from './VideoPlayer'; // Assuming you have this component
-import TrimSlider from './TrimSlider';   // Assuming you have this component
+import VideoPlayer from './VideoPlayer';
+// import TrimSlider from './TrimSlider'; // Now part of ConversionSettingsOrchestrator
 import {
   Box, Heading, Text, Button, Input, FormControl, FormLabel, Checkbox, HStack,
   SimpleGrid, Center, Image, Link, useColorModeValue, Select, VStack,
@@ -9,6 +9,9 @@ import {
   NumberInput, NumberInputField, NumberInputStepper, NumberIncrementStepper, NumberDecrementStepper, Divider, Icon
 } from '@chakra-ui/react';
 import { FiUploadCloud } from 'react-icons/fi'; // Example icon
+import FileUploadZone from './FileUploadZone';
+import OutputDisplay from './OutputDisplay';
+import ConversionSettingsOrchestrator from './ConversionSettingsOrchestrator';
 
 /*
 Upcoming Features & Potential Enhancements:
@@ -576,6 +579,11 @@ function Upload() {
     text: textOverlay,
     fontSize: fontSize,
     position: textPosition,
+    // Ensure color and bgColor are passed correctly, even if empty
+    // The VideoPlayer component should handle default values if these are null/undefined
+    // For example, if textColor is an empty string, VideoPlayer might default to 'white'.
+    // If textBgColor is empty, VideoPlayer might default to 'transparent'.
+    // This depends on VideoPlayer's internal logic.
     color: textColor,
     bgColor: textBgColor,
     fontStyle: fontStyle,
@@ -601,77 +609,26 @@ function Upload() {
       {/* Display Progress Indicators */}
       {progressIndicator}
 
-
+      <FileUploadZone
+        file={file}
+        videoUrlInput={videoUrlInput}
+        isDragging={isDragging}
+        onFileChange={handleFileChange}
+        onVideoUrlInputChange={(e) => {
+          setVideoUrlInput(e.target.value);
+          if (e.target.value) {
+            setFile(null);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            setUploadedFilename('');
+          }
+        }}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onBrowseClick={() => fileInputRef.current && fileInputRef.current.click()}
+        fileInputRef={fileInputRef}
+      />
       <VStack spacing={6} align="stretch" mb={8}>
-        <Box
-          borderWidth={2}
-          borderStyle="dashed"
-          borderColor={isDragging ? dropZoneHoverBorder : borderColor}
-          bg={isDragging ? dragActiveBg : dropZoneInitialBg}
-          borderRadius="lg"
-          p={{ base: 6, md: 10 }}
-          textAlign="center"
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          _hover={{ borderColor: dropZoneHoverBorder, cursor: 'pointer' }}
-          transition="all 0.3s ease-in-out"
-          onClick={() => fileInputRef.current && fileInputRef.current.click()}
-        >
-          <Icon as={FiUploadCloud} w={12} h={12} color={labelColor} mb={3} />
-          <Text color={labelColor} mb={4} fontSize="lg">
-            {file ? (
-              <Text as="span" fontWeight="medium" color={selectedFileNameColor}>
-                Selected: {file.name}
-              </Text>
-            ) : (
-              'Drag & drop your video here, or click to select'
-            )}
-          </Text>
-          <Input
-            type="file"
-            accept=".mp4,.avi,.mov,.webm,.mkv"
-            onChange={handleFileChange}
-            ref={fileInputRef}
-            display="none"
-            id="fileInput"
-          />
-          <Button variant="outline" colorScheme="blue" size="md" onClick={(e) => { e.stopPropagation(); fileInputRef.current && fileInputRef.current.click(); }}>
-            {file ? 'Change Video' : 'Select Video File'}
-          </Button>
-        </Box>
-
-        <HStack align="center" spacing={4}>
-            <Divider borderColor={borderColor} />
-            <Text textAlign="center" color={labelColor} fontWeight="medium" whiteSpace="nowrap">
-                OR
-            </Text>
-            <Divider borderColor={borderColor} />
-        </HStack>
-
-        <FormControl id="videoUrlControl">
-          <FormLabel htmlFor="videoUrlInput" fontSize="sm" color={labelColor} fontWeight="medium">
-            Enter Video URL
-          </FormLabel>
-          <Input
-            id="videoUrlInput"
-            type="url"
-            placeholder="e.g., https://example.com/video.mp4 or YouTube link"
-            value={videoUrlInput}
-            onChange={(e) => {
-              setVideoUrlInput(e.target.value);
-              if (e.target.value) {
-                setFile(null);
-                if (fileInputRef.current) fileInputRef.current.value = '';
-                // resetConversionStates(); // Full reset might be too much here, let resetStatesForNewVideo handle it in handleProcessUrl
-                setUploadedFilename('');
-              }
-            }}
-            focusBorderColor="blue.500"
-            size="lg"
-          />
-        </FormControl>
-
         <Button
           onClick={file ? () => handleAnalyzeVideo() : handleProcessUrl} // Decide action based on input
           isDisabled={(!file && !videoUrlInput) || isUploading || isAnalyzing || isConverting}
@@ -685,20 +642,6 @@ function Upload() {
           {(isUploading || (isAnalyzing && !outputUrl)) ? 'Processing...' : 'Process Video'}
         </Button>
       </VStack>
-
-      {/* Preset Selection Dropdown - Placed before detailed settings */}
-      {uploadedFilename && videoDuration > 0 && (
-        <FormControl mb={8} id="preset-selection">
-          <FormLabel htmlFor="presetSelect" color={labelColor} fontWeight="medium">Quick Presets</FormLabel>
-          <Select id="presetSelect" value={selectedPreset} onChange={handlePresetChange} focusBorderColor="blue.500" size="lg" bg={selectBgColor}>
-            {presets.map(preset => (
-              <option key={preset.name} value={preset.name}>
-                {preset.name}
-              </option>
-            ))}
-          </Select>
-        </FormControl>
-      )}
 
        {/* Video Preview Area - show if videoSrc is available and no outputUrl is generated, OR if visual cropper is active */}
       {(videoSrc && !outputUrl && !showVisualCropper) && (
@@ -787,169 +730,42 @@ function Upload() {
         </Box>
       )}
 
+      {/* Conversion Settings Section */}
       {uploadedFilename && videoDuration > 0 && (
-        <Box mt={10}>
-          <Heading as="h3" size="lg" mb={6} textAlign="center" borderBottomWidth="2px" borderColor={borderColor} pb={3}>
-            Conversion Settings
-          </Heading>
+        <ConversionSettingsOrchestrator
+          videoDuration={videoDuration}
+          trim={trim}
+          onTrimChange={handleTrimChange}
+          scenePoints={scenePoints}
+          fps={fps} setFps={setFps}
+          width={width} setWidth={setWidth}
+          includeAudio={includeAudio} setIncludeAudio={setIncludeAudio}
+          showVisualCropper={showVisualCropper} setShowVisualCropper={setShowVisualCropper}
+          videoSrc={videoSrc}
+          videoPreviewDimensions={videoPreviewDimensions}
+          isProcessing={isUploading || isAnalyzing || isConverting}
+          cropX={cropX} setCropX={setCropX}
+          cropY={cropY} setCropY={setCropY}
+          cropW={cropW} setCropW={setCropW}
+          cropH={cropH} setCropH={setCropH}
+          textOverlay={textOverlay} setTextOverlay={setTextOverlay}
+          fontSize={fontSize} setFontSize={setFontSize}
+          fontStyle={fontStyle} setFontStyle={setFontStyle} fontStyleOptions={fontStyleOptions}
+          textColor={textColor} setTextColor={setTextColor}
+          textBgColor={textBgColor} setTextBgColor={setTextBgColor}
+          textPosition={textPosition} setTextPosition={setTextPosition}
+          speedFactor={speedFactor} setSpeedFactor={setSpeedFactor}
+          reverse={reverse} setReverse={setReverse}
+          presets={presets}
+          selectedPreset={selectedPreset}
+          onPresetChange={handlePresetChange}
+        />
+      )}
 
-          <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" mb={8} bg={settingsBoxBg} id="trim-section">
-            <TrimSlider
-              duration={videoDuration}
-              // value={trim} // TrimSlider manages its own internal start/end based on duration
-              onTrimChange={handleTrimChange}
-              scenes={scenePoints}
-            />
-          </Box>
-
-          <VStack spacing={8} align="stretch">
-            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg} id="output-options-section">
-              <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Output Options</Heading>
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                <FormControl>
-                  <FormLabel htmlFor="fps" color={labelColor}>FPS (Frames Per Second)</FormLabel>
-                  <NumberInput id="fps" value={fps} min={1} max={60} onChange={(valStr, valNum) => setFps(valNum)} focusBorderColor="blue.500">
-                    <NumberInputField />
-                    <NumberInputStepper>
-                      <NumberIncrementStepper />
-                      <NumberDecrementStepper />
-                    </NumberInputStepper>
-                  </NumberInput>
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="width" color={labelColor}>Output Width (pixels)</FormLabel>
-                  <NumberInput id="width" value={width} min={100} max={1920} step={10} onChange={(valStr, valNum) => setWidth(valNum)} focusBorderColor="blue.500">
-                    <NumberInputField />
-                    <NumberInputStepper>
-                      <NumberIncrementStepper />
-                      <NumberDecrementStepper />
-                    </NumberInputStepper>
-                  </NumberInput>
-                </FormControl>
-              </SimpleGrid>
-              <FormControl display="flex" alignItems="center" mt={8}>
-                <Checkbox id="includeAudioCheckbox" isChecked={includeAudio} onChange={(e) => setIncludeAudio(e.target.checked)} size="lg" colorScheme="green">
-                  Include Audio (outputs as short video, e.g., MP4)
-                </Checkbox>
-              </FormControl>
-            </Box>
-
-            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg} id="crop-section">
-              <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Crop Video (Optional)</Heading>
-              <Button
-                onClick={() => setShowVisualCropper(!showVisualCropper)}
-                colorScheme={showVisualCropper ? "orange" : "blue"}
-                mb={4}
-                isDisabled={!videoSrc || videoPreviewDimensions.naturalWidth === 0 || isUploading || isAnalyzing || isConverting}
-              >
-                {showVisualCropper ? "Hide Visual Cropper & Use Numerical Inputs" : "Visually Select Crop Area"}
-              </Button>
-              {!showVisualCropper && (
-                <Text fontSize="sm" color={labelColor} mb={4}>
-                  Specify crop numerically, or use the visual tool above. Values are in pixels relative to original video.
-                </Text>)}
-              <SimpleGrid columns={{ base: 2, md: 4 }} spacing={6}>
-                <FormControl>
-                  <FormLabel htmlFor="cropX" color={labelColor}>X</FormLabel>
-                  <NumberInput id="cropX" value={cropX ?? ''} min={0} onChange={(valStr, valNum) => setCropX(valStr === '' ? null : parseInt(valNum, 10))} placeholder="e.g., 10" focusBorderColor="blue.500">
-                    <NumberInputField />
-                  </NumberInput>
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="cropY" color={labelColor}>Y</FormLabel>
-                  <NumberInput id="cropY" value={cropY ?? ''} min={0} onChange={(valStr, valNum) => setCropY(valStr === '' ? null : parseInt(valNum, 10))} placeholder="e.g., 10" focusBorderColor="blue.500">
-                    <NumberInputField />
-                  </NumberInput>
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="cropW" color={labelColor}>Width</FormLabel>
-                  <NumberInput id="cropW" value={cropW ?? ''} min={0} onChange={(valStr, valNum) => setCropW(valStr === '' ? null : parseInt(valNum, 10))} placeholder="e.g., 640" focusBorderColor="blue.500">
-                    <NumberInputField />
-                  </NumberInput>
-                </FormControl>
-                <FormControl>
-                  <FormLabel htmlFor="cropH" color={labelColor}>Height</FormLabel>
-                  <NumberInput id="cropH" value={cropH ?? ''} min={0} onChange={(valStr, valNum) => setCropH(valStr === '' ? null : parseInt(valNum, 10))} placeholder="e.g., 480" focusBorderColor="blue.500">
-                    <NumberInputField />
-                  </NumberInput>
-                </FormControl>
-              </SimpleGrid>
-            </Box>
-
-            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg} id="text-overlay-section">
-              <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Text Overlay</Heading>
-              <VStack spacing={5} align="stretch">
-                <FormControl>
-                  <FormLabel htmlFor="textOverlay" color={labelColor}>Text</FormLabel>
-                  <Input id="textOverlay" placeholder="Enter text to overlay" value={textOverlay} onChange={(e) => setTextOverlay(e.target.value)} focusBorderColor="blue.500" />
-                </FormControl>
-                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                  <FormControl>
-                    <FormLabel htmlFor="fontSize" color={labelColor}>Font Size</FormLabel>
-                    <NumberInput id="fontSize" value={fontSize} min={8} max={100} onChange={(valStr, valNum) => setFontSize(valNum)} focusBorderColor="blue.500">
-                      <NumberInputField />
-                      <NumberInputStepper>
-                        <NumberIncrementStepper />
-                        <NumberDecrementStepper />
-                      </NumberInputStepper>
-                    </NumberInput>
-                  </FormControl>
-                  <FormControl>
-                    <FormLabel htmlFor="fontStyle" color={labelColor}>Font Style</FormLabel>
-                    <Select id="fontStyle" value={fontStyle} onChange={(e) => setFontStyle(e.target.value)} focusBorderColor="blue.500">
-                      {fontStyleOptions.map((font) => (
-                        <option key={font} value={font}>{font}</option>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </SimpleGrid>
-                <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                  <FormControl>
-                    <FormLabel htmlFor="textColor" color={labelColor}>Text Color</FormLabel>
-                    <Input id="textColor" type="text" placeholder="e.g., white or #FFFFFF" value={textColor} onChange={(e) => setTextColor(e.target.value)} focusBorderColor="blue.500" />
-                  </FormControl>
-                  <FormControl>
-                    <FormLabel htmlFor="textBgColor" color={labelColor}>Text Background Color (optional)</FormLabel>
-                    <Input id="textBgColor" type="text" placeholder="e.g., black or #00000080" value={textBgColor} onChange={(e) => setTextBgColor(e.target.value)} focusBorderColor="blue.500" />
-                  </FormControl>
-                </SimpleGrid>
-                <FormControl>
-                  <FormLabel htmlFor="textPosition" color={labelColor}>Text Position</FormLabel>
-                  <Select id="textPosition" value={textPosition} onChange={(e) => setTextPosition(e.target.value)} focusBorderColor="blue.500">
-                    <option value="center">Center</option>
-                    <option value="top-left">Top Left</option>
-                    <option value="top-right">Top Right</option>
-                    <option value="bottom-left">Bottom Left</option>
-                    <option value="bottom-right">Bottom Right</option>
-                  </Select>
-                </FormControl>
-              </VStack>
-            </Box>
-
-            <Box p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg} id="effects-section">
-              <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Video Effects</Heading>
-              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} alignItems="center">
-                <FormControl>
-                  <FormLabel htmlFor="speedFactor" color={labelColor}>Speed Factor</FormLabel>
-                  <NumberInput id="speedFactor" value={speedFactor} min={0.1} max={5.0} step={0.1} precision={1} onChange={(valStr, valNum) => setSpeedFactor(parseFloat(valNum) || 1.0)} focusBorderColor="blue.500">
-                    <NumberInputField />
-                    <NumberInputStepper>
-                      <NumberIncrementStepper />
-                      <NumberDecrementStepper />
-                    </NumberInputStepper>
-                  </NumberInput>
-                </FormControl>
-                <FormControl display="flex" alignItems="center" pt={{ md: "32px" }}> {/* Align checkbox with label better */}
-                  <Checkbox id="reverseCheckbox" isChecked={reverse} onChange={(e) => setReverse(e.target.checked)} size="lg" colorScheme="orange">
-                    Reverse Video
-                  </Checkbox>
-                </FormControl>
-              </SimpleGrid>
-            </Box>
-          </VStack>
-
+      {/* Convert Button - Placed after settings if settings are visible */}
+      {uploadedFilename && videoDuration > 0 && (
+        <>
           <Divider my={10} />
-
           <Button
             onClick={handleConvert}
             colorScheme="purple"
@@ -962,35 +778,14 @@ function Upload() {
           >
             {isConverting ? 'Converting...' : `Convert to ${outputFormat.toUpperCase()}`}
           </Button>
-        </Box>
+        </>
       )}
 
-      {outputUrl && (
-        <Box mt={10} p={{base: 4, md: 6}} borderWidth="1px" borderRadius="lg" shadow="xl" bg={gifResultBoxBg}>
-          <Heading as="h3" size="lg" mb={6} textAlign="center" color={resultHeadingColor}>
-            Your {outputFormat.toUpperCase()} is Ready!
-          </Heading>
-          <Box borderRadius="md" overflow="hidden">
-            <Center>
-              {outputFormat === 'mp4' ? (
-                <VideoPlayer
-                  key={outputUrl}
-                  src={outputUrl}
-                  onMetadataLoaded={() => {}}
-                  liveTextOverlay={null}
-                />
-              ) : (
-                <Image src={outputUrl} alt={`Converted ${outputFormat.toUpperCase()}`} maxW="full" borderRadius="md" />
-              )}
-            </Center>
-          </Box>
-          <Link href={outputUrl} download isExternal _hover={{textDecoration: 'none'}}>
-            <Button colorScheme="teal" size="lg" w="full" mt={6} leftIcon={<Icon as={FiUploadCloud} transform="rotate(180deg)" />}>
-              Download {outputFormat.toUpperCase()}
-            </Button>
-          </Link>
-        </Box>
-      )}
+      <OutputDisplay
+        outputUrl={outputUrl}
+        outputFormat={outputFormat}
+        liveTextOverlay={null} // No live overlay for the final output
+      />
     </Box>
   );
 }
