@@ -16,29 +16,29 @@ import ConversionSettingsOrchestrator from './ConversionSettingsOrchestrator';
 /*
 Upcoming Features & Potential Enhancements:
 
-*   Real-time Previews:
-    *   Live preview for text overlay adjustments (font, size, color, position).
-    *   Attempt real-time feedback for some simpler effects.
-*   Granular Progress Indicators:
-    *   Detailed progress bars for file uploads (percentage).
-    *   Step-by-step progress updates during the conversion process (e.g., "Trimming...", "Applying effects...", "Encoding...").
-*   Preset Options:
-    *   Pre-defined configurations for common use cases (e.g., "High-Quality GIF," "Small Email GIF," "Social Media MP4").
-*   Additional Video Effects/Filters:
-    *   Brightness, contrast, saturation adjustments.
-    *   Grayscale, Sepia filters.
-*   Enhanced Visual Cropper:
-    *   Aspect ratio locking for crop selection.
-    *   Real-time display of numeric crop values (X, Y, W, H) during visual selection.
-    *   Snapping options (to edges, center).
-*   Componentization of Settings:
-    *   Refactor large UI sections (e.g., Output Options, Crop, Text Overlay, Effects) into smaller, more manageable React components.
-*   User Configurations/Templates:
-    *   Allow users to save their current set of conversion settings as a template.
-    *   Ability to load saved templates for frequent tasks.
-*   Advanced GIF Options:
-    *   Dithering options for better color quality in GIFs.
-    *   Loop count control.
+* Real-time Previews:
+    * Live preview for text overlay adjustments (font, size, color, position).
+    * Attempt real-time feedback for some simpler effects.
+* Granular Progress Indicators:
+    * Detailed progress bars for file uploads (percentage).
+    * Step-by-step progress updates during the conversion process (e.g., "Trimming...", "Applying effects...", "Encoding...").
+* Preset Options:
+    * Pre-defined configurations for common use cases (e.g., "High-Quality GIF," "Small Email GIF," "Social Media MP4").
+* Additional Video Effects/Filters:
+    * Brightness, contrast, saturation adjustments.
+    * Grayscale, Sepia filters.
+* Enhanced Visual Cropper:
+    * Aspect ratio locking for crop selection.
+    * Real-time display of numeric crop values (X, Y, W, H) during visual selection.
+    * Snapping options (to edges, center).
+* Componentization of Settings:
+    * Refactor large UI sections (e.g., Output Options, Crop, Text Overlay, Effects) into smaller, more manageable React components.
+* User Configurations/Templates:
+    * Allow users to save their current set of conversion settings as a template.
+    * Ability to load saved templates for frequent tasks.
+* Advanced GIF Options:
+    * Dithering options for better color quality in GIFs.
+    * Loop count control.
 */
 
 function Upload() {
@@ -169,6 +169,8 @@ function Upload() {
   }, [videoSrc]);
 
   const resetStatesForNewVideo = () => {
+    setFile(null); // Added this - should reset file state too
+    setVideoUrlInput(''); // Added this - should reset url input too
     setVideoSrc(null);
     setUploadedFilename('');
     setVideoPlayerKey(Date.now());
@@ -187,25 +189,37 @@ function Upload() {
     setIsConverting(false);
     setMessage({ text: '', type: 'info' });
     setSelectedPreset(presets[0].name); // Reset to default preset
+    setTextOverlay(''); // Also reset text overlay settings
+    setFontSize(20);
+    setTextPosition('center');
+    setTextColor('white');
+    setTextBgColor('');
+    setFontStyle('Arial');
+    setSpeedFactor(presets[0].settings.speedFactor);
+    setReverse(presets[0].settings.reverse);
+    setIncludeAudio(presets[0].settings.includeAudio);
+    setOutputFormat(presets[0].settings.outputFormat);
   };
 
 
   const resetConversionStates = () => { // Kept for potential specific resets if needed
     setOutputUrl('');
-    setTrim({ start: 0, end: null });
-    setScenePoints([]);
-    setVideoDuration(0);
+    // trim, scenePoints, videoDuration are related to video analysis, not just conversion state
+    // setTrim({ start: 0, end: null }); // Might not want to reset trim here
+    // setScenePoints([]); // Might not want to reset scenes here
+    // setVideoDuration(0); // Might not want to reset duration here
     setCropX(null);
     setCropY(null);
     setCropW(null);
     setCropH(null);
     setShowVisualCropper(false);
+    // Don't reset text overlay, effects, output options here as they are settings for conversion
   };
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile && ['video/mp4', 'video/avi', 'video/quicktime', 'video/webm', 'video/x-matroska'].includes(selectedFile.type)) {
-      resetStatesForNewVideo();
+      resetStatesForNewVideo(); // Reset all states for a new video
       setFile(selectedFile);
       setVideoSrc(URL.createObjectURL(selectedFile)); // Show local preview immediately
       setVideoPlayerKey(Date.now()); // Ensure player updates for local preview
@@ -214,9 +228,9 @@ function Upload() {
       formData.append('video', selectedFile);
 
       setMessage({ text: 'Uploading video...', type: 'info' });
-      setUploadedFilename('');
-      setVideoDuration(0);
-      setOutputUrl(null);
+      // setUploadedFilename(''); // Already in resetStatesForNewVideo
+      // setVideoDuration(0); // Already in resetStatesForNewVideo
+      // setOutputUrl(null); // Already in resetStatesForNewVideo
       setIsUploading(true);
       setUploadProgress(0);
 
@@ -245,21 +259,29 @@ function Upload() {
               naturalHeight: video.videoHeight
           });
         };
+         video.onerror = () => {
+            console.error("Error loading video metadata from local file.");
+            setMessage({ text: "Could not load video metadata. Try a different file or URL.", type: 'error' });
+            // Optionally reset states if metadata loading fails
+            // resetStatesForNewVideo();
+         };
       })
       .catch(error => {
         console.error("Error uploading file:", error.response ? error.response.data : error.message);
         setMessage({ text: `Upload failed: ${error.response ? error.response.data.error : error.message}`, type: 'error' });
-        setFile(null);
-        setVideoSrc(null);
+        // setFile(null); // Already in resetStatesForNewVideo
+        // setVideoSrc(null); // Already in resetStatesForNewVideo
+        resetStatesForNewVideo(); // Ensure all states are reset on upload failure
       })
       .finally(() => {
         setIsUploading(false);
         // setUploadProgress(0); // Or let it stay at 100
       });
-      setVideoUrlInput(''); // Clear URL input
+      // setVideoUrlInput(''); // Already in resetStatesForNewVideo
     } else {
-      setFile(null);
-      setVideoSrc(null);
+      // setFile(null); // Already in resetStatesForNewVideo
+      // setVideoSrc(null); // Already in resetStatesForNewVideo
+      resetStatesForNewVideo(); // Reset all states on invalid file selection
       setMessage({ text: 'Please select a valid video file (MP4, AVI, MOV, WEBM, MKV).', type: 'error' });
     }
   };
@@ -292,11 +314,11 @@ function Upload() {
       setMessage({ text: 'Please enter a video URL.', type: 'error' });
       return;
     }
-    resetStatesForNewVideo();
+    resetStatesForNewVideo(); // Reset all states for a new video
     setMessage({ text: 'Processing URL...', type: 'info' });
-    setUploadedFilename('');
-    setVideoDuration(0);
-    setOutputUrl(null);
+    // setUploadedFilename(''); // Already in resetStatesForNewVideo
+    // setVideoDuration(0); // Already in resetStatesForNewVideo
+    // setOutputUrl(null); // Already in resetStatesForNewVideo
     setIsAnalyzing(true); // Use isAnalyzing for URL processing as it leads to analysis
 
     axios.post(`${apiUrl}/process-url`, { url: videoUrlInput })
@@ -310,6 +332,7 @@ function Upload() {
         console.error("Error processing URL:", error.response ? error.response.data : error.message);
         setMessage({ text: `URL processing failed: ${error.response ? error.response.data.error : error.message}`, type: 'error' });
         setIsAnalyzing(false); // Stop analyzing if URL processing fails
+        resetStatesForNewVideo(); // Ensure all states are reset on URL processing failure
       });
   };
 
@@ -321,7 +344,7 @@ function Upload() {
     }
     setMessage({ text: 'Analyzing video...', type: 'info' });
     const videoSrcPriorToAnalysis = videoSrc;
-    setOutputUrl(null);
+    // setOutputUrl(null); // Already in resetStatesForNewVideo or resetConversionStates if used after initial load
     setIsAnalyzing(true);
 
     try {
@@ -334,17 +357,55 @@ function Upload() {
       if (backendPreviewUrl) {
         setVideoSrc(backendPreviewUrl);
       } else if (videoSrcPriorToAnalysis && videoSrcPriorToAnalysis.startsWith('blob:')) {
+        // If no backend preview, try to keep the local preview if it exists
         if (videoSrc !== videoSrcPriorToAnalysis) {
           setVideoSrc(videoSrcPriorToAnalysis);
         }
       } else {
-        setVideoSrc(null);
+        setVideoSrc(null); // No preview available
       }
+       // Update video dimensions after analysis as backend might provide them or we use the current videoSrc
+      const video = document.createElement('video');
+       video.preload = 'metadata';
+       video.src = backendPreviewUrl || videoSrcPriorToAnalysis; // Use backend URL or local blob
+       video.onloadedmetadata = () => {
+            handleVideoMetadata({
+                width: video.videoWidth,
+                height: video.videoHeight,
+                naturalWidth: video.videoWidth,
+                naturalHeight: video.videoHeight
+            });
+             video.remove(); // Clean up the temporary video element
+        };
+        video.onerror = () => {
+             console.error("Error loading video metadata after analysis.");
+             // Proceed without dimensions or handle error appropriately
+             video.remove(); // Clean up the temporary video element
+        };
+        // If video is already loaded (e.g., local preview), metadata might be available immediately
+         if (video.readyState >= 1) {
+            handleVideoMetadata({
+                width: video.videoWidth,
+                height: video.videoHeight,
+                naturalWidth: video.videoWidth,
+                naturalHeight: video.videoHeight
+            });
+             video.remove(); // Clean up the temporary video element
+         }
+
+
       setMessage({ text: `Video analyzed successfully. Ready to convert.`, type: 'success' });
     } catch (error) {
       console.error("Error analyzing video:", error.response ? error.response.data : error.message);
       setMessage({ text: `Analysis failed: ${error.response ? error.response.data.error : error.message}`, type: 'error' });
-      setUploadedFilename('');
+      setUploadedFilename(''); // Clear filename if analysis fails
+      setVideoSrc(null); // Clear video source on analysis failure
+      setVideoDuration(0); // Reset duration
+      setTrim({ start: 0, end: 0 }); // Reset trim
+      setScenePoints([]); // Reset scenes
+      setVideoPreviewDimensions({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 }); // Reset dimensions
+       setCropX(null); setCropY(null); setCropW(null); setCropH(null); // Reset crop
+       setShowVisualCropper(false); // Hide cropper
     } finally {
       setVideoPlayerKey(Date.now());
       setIsAnalyzing(false);
@@ -357,9 +418,18 @@ function Upload() {
       setMessage({ text: 'Please upload or process a video first.', type: 'error' });
       return;
     }
+     if (isUploading || isAnalyzing || isConverting) {
+         console.log("Conversion already in progress or busy.");
+         return; // Prevent multiple clicks while busy
+     }
+
     setMessage({ text: 'Starting conversion...', type: 'info' });
     setOutputUrl(null);
     setIsConverting(true);
+
+    // Determine output format based on includeAudio state
+    const finalOutputFormat = includeAudio ? 'mp4' : 'gif';
+    setOutputFormat(finalOutputFormat); // Update outputFormat state for UI text
 
     const conversionSettings = {
       filename: uploadedFilename,
@@ -367,31 +437,32 @@ function Upload() {
       width,
       start_time: trim.start,
       end_time: trim.end,
-      text: textOverlay || null,
+      text: textOverlay || null, // Send null if textOverlay is empty
       font_size: fontSize,
       text_position: textPosition,
       text_color: textColor,
-      text_bg_color: textBgColor || null,
+      text_bg_color: textBgColor || null, // Send null if textBgColor is empty
       font_style: fontStyle,
       speed_factor: speedFactor,
       reverse: reverse,
-      include_audio: outputFormat === 'mp4' ? includeAudio : false, // Only include audio if output is MP4
-      output_format: includeAudio ? 'mp4' : 'gif', // Determine format based on audio
+      include_audio: finalOutputFormat === 'mp4', // Only include audio if output is MP4
+      output_format: finalOutputFormat,
       crop_x: cropX,
       crop_y: cropY,
       crop_w: cropW,
       crop_h: cropH,
     };
-    setOutputFormat(includeAudio ? 'mp4' : 'gif'); // Update outputFormat state for UI text
+
 
     try {
       const response = await axios.post(`${apiUrl}/convert`, conversionSettings);
-      setMessage({ text: `Successfully converted to ${outputFormat.toUpperCase()}!`, type: 'success' });
+      setMessage({ text: `Successfully converted to ${finalOutputFormat.toUpperCase()}!`, type: 'success' });
       setOutputUrl(response.data.url);
-      setVideoPlayerKey(Date.now());
+      setVideoPlayerKey(Date.now()); // Re-key to update player with new output
     } catch (error) {
       console.error("Error converting video:", error.response ? error.response.data : error.message);
       setMessage({ text: `Conversion failed: ${error.response ? error.response.data.error : error.message}`, type: 'error' });
+      setOutputUrl(null); // Clear output URL on conversion failure
     } finally {
       setIsConverting(false);
     }
@@ -410,6 +481,8 @@ function Upload() {
         const initialSelectionWidth = naturalWidth;
         const initialSelectionHeight = naturalHeight;
 
+        // Call handleVisualCropChange to initialize selectionRect based on video metadata
+        // This also sets the cropX,Y,W,H states
         handleVisualCropChange({
             x: initialX,
             y: initialY,
@@ -419,12 +492,15 @@ function Upload() {
             selectionNaturalHeight: naturalHeight
         });
     } else {
+         // Reset crop and selection if dimensions are invalid
         handleVisualCropChange({
             x: 0, y: 0, width: 0, height: 0,
             selectionNaturalWidth: 0, selectionNaturalHeight: 0
         });
     }
-  }, [/* handleVisualCropChange will be defined below or needs to be memoized if passed as prop */]);
+    // This useCallback itself does not depend on handleVisualCropChange
+    // as handleVisualCropChange is also a useCallback that is stable
+  }, []);
 
 
   const handleVisualCropChange = useCallback((newRect) => {
@@ -438,32 +514,54 @@ function Upload() {
         selectionNaturalHeight: newRect.selectionNaturalHeight,
     };
 
+    // Ensure minimum dimensions
     validatedRect.width = Math.max(minDimension, validatedRect.width);
     validatedRect.height = Math.max(minDimension, validatedRect.height);
 
     if (validatedRect.selectionNaturalWidth > 0 && validatedRect.selectionNaturalHeight > 0) {
-        validatedRect.x = Math.max(0, validatedRect.x);
-        validatedRect.y = Math.max(0, validatedRect.y);
+        // Clamp position to prevent exceeding bounds
+        validatedRect.x = Math.max(0, Math.min(validatedRect.x, validatedRect.selectionNaturalWidth - validatedRect.width));
+        validatedRect.y = Math.max(0, Math.min(validatedRect.y, validatedRect.selectionNaturalHeight - validatedRect.height));
 
-        if (validatedRect.x + validatedRect.width > validatedRect.selectionNaturalWidth) {
-            validatedRect.x = validatedRect.selectionNaturalWidth - validatedRect.width;
-        }
-        if (validatedRect.y + validatedRect.height > validatedRect.selectionNaturalHeight) {
-            validatedRect.y = validatedRect.selectionNaturalHeight - validatedRect.height;
-        }
-        validatedRect.x = Math.max(0, validatedRect.x);
-        validatedRect.y = Math.max(0, validatedRect.y);
-
-        validatedRect.width = Math.min(validatedRect.width, validatedRect.selectionNaturalWidth - validatedRect.x);
+        // Re-calculate size based on clamped position and natural dimensions
+         validatedRect.width = Math.min(validatedRect.width, validatedRect.selectionNaturalWidth - validatedRect.x);
         validatedRect.height = Math.min(validatedRect.height, validatedRect.selectionNaturalHeight - validatedRect.y);
     }
 
+    // Update states. These are stable setters and don't need to be in useCallback dependencies.
     setCropX(validatedRect.x);
     setCropY(validatedRect.y);
     setCropW(validatedRect.width);
     setCropH(validatedRect.height);
+    // selectionRect is local state managed by this hook, updating it here is fine
     setSelectionRect(validatedRect);
-  }, []);
+
+  }, []); // Dependency array is empty as state setters and local state (selectionRect) are stable
+
+
+  useEffect(() => {
+    // Update crop state when visual cropper is hidden.
+    // When visual cropper is shown, handleVideoMetadata initializes crop via handleVisualCropChange.
+    // This useEffect ensures that when you switch back to numerical inputs,
+    // the numerical inputs reflect the last visual selection.
+    if (!showVisualCropper && videoPreviewDimensions.naturalWidth > 0 && videoPreviewDimensions.naturalHeight > 0) {
+        // Use a slight delay to ensure selectionRect is updated after the last mouseup event
+        const updateCrop = setTimeout(() => {
+             setCropX(selectionRect.x);
+             setCropY(selectionRect.y);
+             setCropW(selectionRect.width);
+             setCropH(selectionRect.height);
+        }, 0); // A small delay like 0 or a few ms can sometimes help
+
+        return () => clearTimeout(updateCrop);
+
+    } else if (!videoSrc) {
+        // Reset crop and selection when no video source
+         setCropX(null); setCropY(null); setCropW(null); setCropH(null);
+         setSelectionRect({ x: 0, y: 0, width: 0, height: 0, selectionNaturalWidth: 0, selectionNaturalHeight: 0 });
+    }
+     // Depend on showVisualCropper, videoPreviewDimensions, selectionRect, videoSrc
+  }, [showVisualCropper, videoPreviewDimensions, selectionRect, videoSrc]);
 
 
   useEffect(() => {
@@ -480,8 +578,15 @@ function Upload() {
       const naturalWidth = initialRect.selectionNaturalWidth;
       const naturalHeight = initialRect.selectionNaturalHeight;
       if (displayWidth === 0 || displayHeight === 0 || naturalWidth === 0 || naturalHeight === 0) return;
-      const scaleX = naturalWidth / displayWidth;
-      const scaleY = naturalHeight / displayHeight;
+      // Ensure scale factors are not zero to avoid division by zero
+      const scaleX = displayWidth > 0 ? naturalWidth / displayWidth : 0;
+      const scaleY = displayHeight > 0 ? naturalHeight / displayHeight : 0;
+
+      if (scaleX === 0 || scaleY === 0) {
+          console.warn("Scale factors are zero, cannot calculate crop accurately.");
+          return; // Prevent calculations if scales are zero
+      }
+
       const deltaXOriginal = (mouseXInContainer - startX) * scaleX;
       const deltaYOriginal = (mouseYInContainer - startY) * scaleY;
       let newRect = { ...initialRect };
@@ -491,23 +596,35 @@ function Upload() {
       } else if (type === 'resize') {
         const { x: ix, y: iy, width: iw, height: ih } = initialRect;
         const minDim = 10;
+        // Calculate potential new dimensions *before* clamping
+        let potentialNewWidth = iw;
+        let potentialNewHeight = ih;
+        let potentialNewX = ix;
+        let potentialNewY = iy;
+
         if (handle.includes('e')) {
-          newRect.width = Math.max(minDim, Math.round(iw + deltaXOriginal));
+          potentialNewWidth = Math.round(iw + deltaXOriginal);
         }
         if (handle.includes('w')) {
-          const newWidth = Math.max(minDim, Math.round(iw - deltaXOriginal));
-          newRect.x = Math.round(ix + (iw - newWidth));
-          newRect.width = newWidth;
+          potentialNewWidth = Math.round(iw - deltaXOriginal);
+          potentialNewX = Math.round(ix + (iw - potentialNewWidth));
         }
         if (handle.includes('s')) {
-          newRect.height = Math.max(minDim, Math.round(ih + deltaYOriginal));
+          potentialNewHeight = Math.round(ih + deltaYOriginal);
         }
         if (handle.includes('n')) {
-          const newHeight = Math.max(minDim, Math.round(ih - deltaYOriginal));
-          newRect.y = Math.round(iy + (ih - newHeight));
-          newRect.height = newHeight;
+          potentialNewHeight = Math.round(ih - deltaYOriginal);
+           potentialNewY = Math.round(iy + (ih - potentialNewHeight));
         }
+
+         // Apply minimum dimension clamp
+        newRect.width = Math.max(minDim, potentialNewWidth);
+        newRect.height = Math.max(minDim, potentialNewHeight);
+        newRect.x = potentialNewX;
+        newRect.y = potentialNewY;
+
       }
+       // After calculating the potential new rect, validate and clamp it
       handleVisualCropChange(newRect);
     };
     const handleDocumentMouseUp = (e) => {
@@ -520,12 +637,15 @@ function Upload() {
       document.removeEventListener('mousemove', handleDocumentMouseMove);
       document.removeEventListener('mouseup', handleDocumentMouseUp);
     };
-  }, [interaction, videoPreviewDimensions, handleVisualCropChange]);
+  }, [interaction, videoPreviewDimensions, handleVisualCropChange]); // Depend on interaction and dimensions
+
 
   const startInteraction = (e, type, handle = 'body') => {
     e.preventDefault();
     e.stopPropagation();
     if (!visualCropContainerRef.current) return;
+     if (isProcessing) return; // Prevent interaction if processing
+
     const containerRect = visualCropContainerRef.current.getBoundingClientRect();
     const startX = e.clientX - containerRect.left;
     const startY = e.clientY - containerRect.top;
@@ -549,6 +669,10 @@ function Upload() {
       // Note: Trim, Crop, and Text Overlay are not typically part of presets, so they are not reset here.
     }
   };
+
+  // Combined loading state for disabling controls
+  const isProcessing = isUploading || isAnalyzing || isConverting;
+
 
   // Loading and Progress Indicators Section
   let progressIndicator = null;
@@ -588,15 +712,16 @@ function Upload() {
     bgColor: textBgColor,
     fontStyle: fontStyle,
   } : null;
-  
+
   return (
+    // Apply maxWidth to the main container for overall width control
     <Box
       bg={mainBg}
       borderRadius="xl"
       boxShadow="lg"
       p={{ base: 4, md: 8 }}
       color={mainText}
-      maxW="48rem" // Make the container wider
+      maxW="48rem" // Adjust this value to control the overall width (e.g., "60rem", "900px")
       mx="auto" // Center the container on the page
       w="full" // Ensure it takes full width up to maxW
     >
@@ -629,6 +754,15 @@ function Upload() {
             setFile(null);
             if (fileInputRef.current) fileInputRef.current.value = '';
             setUploadedFilename('');
+            setVideoSrc(null); // Clear local preview when entering URL
+             setVideoDuration(0); // Reset duration
+             setTrim({ start: 0, end: 0 }); // Reset trim
+             setScenePoints([]); // Reset scenes
+             setVideoPreviewDimensions({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 }); // Reset dimensions
+             setCropX(null); setCropY(null); setCropW(null); setCropH(null); // Reset crop
+             setShowVisualCropper(false); // Hide cropper
+             setOutputUrl(null); // Clear output
+             // Keep text overlay, effects, output options as they might be desired for the URL conversion
           }
         }}
         onDragOver={handleDragOver}
@@ -640,15 +774,15 @@ function Upload() {
       <VStack spacing={6} align="stretch" mb={8}>
         <Button
           onClick={file ? () => handleAnalyzeVideo() : handleProcessUrl} // Decide action based on input
-          isDisabled={(!file && !videoUrlInput) || isUploading || isAnalyzing || isConverting}
+          isDisabled={(!file && !videoUrlInput) || isProcessing || (!file && videoUrlInput.trim() === '')} // Disable if no input or processing
           colorScheme="green"
           size="lg"
           w="full"
-          isLoading={isUploading || (isAnalyzing && !outputUrl)} // Show spinner during upload or initial analysis
+          isLoading={isProcessing} // Show spinner for any processing
           spinner={<Spinner size="md" />}
-          leftIcon={(isUploading || (isAnalyzing && !outputUrl)) ? undefined : <Icon as={FiUploadCloud} />}
+          leftIcon={isProcessing ? undefined : <Icon as={FiUploadCloud} />}
         >
-          {(isUploading || (isAnalyzing && !outputUrl)) ? 'Processing...' : 'Process Video'}
+          {isProcessing ? 'Processing...' : 'Process Video'}
         </Button>
       </VStack>
 
@@ -662,82 +796,93 @@ function Upload() {
         />
       )}
 
-      {showVisualCropper && videoSrc && videoPreviewDimensions.naturalWidth > 0 && !isUploading && !isAnalyzing && !isConverting && (
-        <Box my={4} p={4} borderWidth="1px" borderRadius="lg" borderColor="blue.500">
+      {showVisualCropper && videoSrc && videoPreviewDimensions.naturalWidth > 0 && !isProcessing && ( // Disable visual cropper when processing
+        <Box my={4} p={4} borderWidth="1px" borderRadius="lg" borderColor="blue.500" maxW="full" overflowX="auto"> {/* Added maxW="full" and overflowX="auto" */}
             <Heading size="md" mb={2}>Visual Crop</Heading>
-            <Text mb={2}>Video Dimensions: {videoPreviewDimensions.naturalWidth}x{videoPreviewDimensions.naturalHeight} (Original)</Text>
-            <Text mb={4}>Displayed Preview Dimensions: {videoPreviewDimensions.width}x{videoPreviewDimensions.height}</Text>
-            <Box
-                position="relative"
-                width={`${videoPreviewDimensions.width}px`}
-                height={`${videoPreviewDimensions.height}px`}
-                mx="auto"
-                border="2px dashed gray"
-                ref={visualCropContainerRef}
-                overflow="hidden"
-            >
-                <video
-                    src={videoSrc}
-                    style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain' }}
-                    controls={false}
-                    autoPlay={false}
-                    muted
-                />
+            {videoPreviewDimensions.naturalWidth > 0 && (
+                <Text mb={2}>Video Dimensions: {videoPreviewDimensions.naturalWidth}x{videoPreviewDimensions.naturalHeight} (Original)</Text>
+            )}
+             {videoPreviewDimensions.width > 0 && videoPreviewDimensions.height > 0 && (
+                <Text mb={4}>Displayed Preview Dimensions: {videoPreviewDimensions.width}x{videoPreviewDimensions.height}</Text>
+             )}
+             {(videoPreviewDimensions.width > 0 && videoPreviewDimensions.height > 0 && videoSrc) ? ( // Only show the cropper box if dimensions are valid
                 <Box
-                    position="absolute"
-                    border="2px solid blue"
-                    bg="rgba(0,0,255,0.2)"
-                    style={{
-                        left: videoPreviewDimensions.width > 0 && selectionRect.selectionNaturalWidth > 0 ? `${(selectionRect.x / selectionRect.selectionNaturalWidth) * videoPreviewDimensions.width}px` : '0px',
-                        top: videoPreviewDimensions.height > 0 && selectionRect.selectionNaturalHeight > 0 ? `${(selectionRect.y / selectionRect.selectionNaturalHeight) * videoPreviewDimensions.height}px` : '0px',
-                        width: videoPreviewDimensions.width > 0 && selectionRect.selectionNaturalWidth > 0 ? `${(selectionRect.width / selectionRect.selectionNaturalWidth) * videoPreviewDimensions.width}px` : '0px',
-                        height: videoPreviewDimensions.height > 0 && selectionRect.selectionNaturalHeight > 0 ? `${(selectionRect.height / selectionRect.selectionNaturalHeight) * videoPreviewDimensions.height}px` : '0px',
-                        cursor: 'move',
-                        display: (selectionRect.width <=0 || selectionRect.height <=0) ? 'none' : 'block',
-                    }}
-                    onMouseDown={(e) => startInteraction(e, 'drag')}
+                    position="relative"
+                    width={`${videoPreviewDimensions.width}px`}
+                    height={`${videoPreviewDimensions.height}px`}
+                    mx="auto"
+                    border="2px dashed gray"
+                    ref={visualCropContainerRef}
+                    overflow="hidden"
+                    maxW="full" // Added maxW="full" here as well
                 >
-                    {['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'].map(handleName => {
-                        const handleSize = "12px";
-                        const handleOffset = "-6px";
-                        let handleStyle = {};
-                        if (handleName.includes('n')) handleStyle.top = handleOffset;
-                        if (handleName.includes('s')) handleStyle.bottom = handleOffset;
-                        if (handleName.includes('w')) handleStyle.left = handleOffset;
-                        if (handleName.includes('e')) handleStyle.right = handleOffset;
-                        if (handleName === 'n' || handleName === 's') {
-                            handleStyle.left = '50%';
-                            handleStyle.transform = 'translateX(-50%)';
-                        }
-                        if (handleName === 'w' || handleName === 'e') {
-                            handleStyle.top = '50%';
-                            handleStyle.transform = 'translateY(-50%)';
-                        }
-                        if (handleName === 'nw') { handleStyle.cursor = 'nwse-resize'; }
-                        else if (handleName === 'ne') { handleStyle.cursor = 'nesw-resize'; }
-                        else if (handleName === 'sw') { handleStyle.cursor = 'nesw-resize'; }
-                        else if (handleName === 'se') { handleStyle.cursor = 'nwse-resize'; }
-                        else if (handleName === 'n' || handleName === 's') { handleStyle.cursor = 'ns-resize'; }
-                        else if (handleName === 'w' || handleName === 'e') { handleStyle.cursor = 'ew-resize'; }
-                        return (
-                            <Box
-                                key={handleName}
-                                position="absolute"
-                                width={handleSize}
-                                height={handleSize}
-                                bg="blue.600"
-                                border="1px solid white"
-                                borderRadius="2px"
-                                style={handleStyle}
-                                onMouseDown={(e) => startInteraction(e, 'resize', handleName)}
-                            />
-                        );
-                    })}
+                    <video
+                        src={videoSrc}
+                        style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain' }}
+                        controls={false}
+                        autoPlay={false}
+                        muted
+                    />
+                    <Box
+                        position="absolute"
+                        border="2px solid blue"
+                        bg="rgba(0,0,255,0.2)"
+                        style={{
+                            left: videoPreviewDimensions.width > 0 && selectionRect.selectionNaturalWidth > 0 ? `${(selectionRect.x / selectionRect.selectionNaturalWidth) * videoPreviewDimensions.width}px` : '0px',
+                            top: videoPreviewDimensions.height > 0 && selectionRect.selectionNaturalHeight > 0 ? `${(selectionRect.y / selectionRect.selectionNaturalHeight) * videoPreviewDimensions.height}px` : '0px',
+                            width: videoPreviewDimensions.width > 0 && selectionRect.selectionNaturalWidth > 0 ? `${(selectionRect.width / selectionRect.selectionNaturalWidth) * videoPreviewDimensions.width}px` : '0px',
+                            height: videoPreviewDimensions.height > 0 && selectionRect.selectionNaturalHeight > 0 ? `${(selectionRect.height / selectionRect.selectionNaturalHeight) * videoPreviewDimensions.height}px` : '0px',
+                            cursor: 'move',
+                            display: (selectionRect.width <=0 || selectionRect.height <=0) ? 'none' : 'block',
+                        }}
+                        onMouseDown={(e) => startInteraction(e, 'drag')}
+                    >
+                        {['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'].map(handleName => {
+                            const handleSize = "12px";
+                            const handleOffset = "-6px";
+                            let handleStyle = {};
+                            if (handleName.includes('n')) handleStyle.top = handleOffset;
+                            if (handleName.includes('s')) handleStyle.bottom = handleOffset;
+                            if (handleName.includes('w')) handleStyle.left = handleOffset;
+                            if (handleName.includes('e')) handleStyle.right = handleOffset;
+                            if (handleName === 'n' || handleName === 's') {
+                                handleStyle.left = '50%';
+                                handleStyle.transform = 'translateX(-50%)';
+                            }
+                            if (handleName === 'w' || handleName === 'e') {
+                                handleStyle.top = '50%';
+                                handleStyle.transform = 'translateY(-50%)';
+                            }
+                            if (handleName === 'nw') { handleStyle.cursor = 'nwse-resize'; }
+                            else if (handleName === 'ne') { handleStyle.cursor = 'nesw-resize'; }
+                            else if (handleName === 'sw') { handleStyle.cursor = 'nesw-resize'; }
+                            else if (handleName === 'se') { handleStyle.cursor = 'nwse-resize'; }
+                            else if (handleName === 'n' || handleName === 's') { handleStyle.cursor = 'ns-resize'; }
+                            else if (handleName === 'w' || handleName === 'e') { handleStyle.cursor = 'ew-resize'; }
+                            return (
+                                <Box
+                                    key={handleName}
+                                    position="absolute"
+                                    width={handleSize}
+                                    height={handleSize}
+                                    bg="blue.600"
+                                    border="1px solid white"
+                                    borderRadius="2px"
+                                    style={handleStyle}
+                                    onMouseDown={(e) => startInteraction(e, 'resize', handleName)}
+                                />
+                            );
+                        })}
+                    </Box>
                 </Box>
-            </Box>
-            <Text mt={2} fontSize="sm">Current Crop (Original Dims): X={cropX ?? 0}, Y={cropY ?? 0}, W={cropW ?? 0}, H={cropH ?? 0}</Text>
+             ) : (
+                 <Text color="gray.500" textAlign="center">Video preview not available for visual cropping.</Text>
+             )}
+            {/* Display current crop values relative to original dimensions */}
+            <Text mt={2} fontSize="sm">Current Crop (Original Dims): X={cropX !== null ? cropX : 'N/A'}, Y={cropY !== null ? cropY : 'N/A'}, W={cropW !== null ? cropW : 'N/A'}, H={cropH !== null ? cropH : 'N/A'}</Text>
         </Box>
       )}
+
 
       {/* Conversion Settings Section */}
       {uploadedFilename && videoDuration > 0 && (
@@ -752,11 +897,11 @@ function Upload() {
           showVisualCropper={showVisualCropper} setShowVisualCropper={setShowVisualCropper}
           videoSrc={videoSrc}
           videoPreviewDimensions={videoPreviewDimensions}
-          isProcessing={isUploading || isAnalyzing || isConverting}
+          isProcessing={isProcessing} // Pass combined processing state
           cropX={cropX} setCropX={setCropX}
           cropY={cropY} setCropY={setCropY}
           cropW={cropW} setCropW={setCropW}
-          cropH={cropH} setCropH={setCropH}
+          cropH={cropH} setCropH={cropH}
           textOverlay={textOverlay} setTextOverlay={setTextOverlay}
           fontSize={fontSize} setFontSize={setFontSize}
           fontStyle={fontStyle} setFontStyle={setFontStyle} fontStyleOptions={fontStyleOptions}
@@ -783,7 +928,7 @@ function Upload() {
             isLoading={isConverting}
             spinner={<Spinner size="md" />}
             leftIcon={isConverting ? undefined : <Icon as={FiUploadCloud} transform="rotate(90deg)" />}
-            isDisabled={isUploading || isAnalyzing || isConverting}
+            isDisabled={isProcessing} // Disable convert button if any processing is happening
           >
             {isConverting ? 'Converting...' : `Convert to ${outputFormat.toUpperCase()}`}
           </Button>

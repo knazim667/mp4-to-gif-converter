@@ -25,6 +25,8 @@ function TextOverlaySettings({
   textBgColor, setTextBgColor,
   textPosition, setTextPosition,
 }) {
+  console.log('TextOverlaySettings received setTextBgColor:', typeof setTextBgColor, setTextBgColor); // Add this log
+
   const settingsBoxBg = useColorModeValue('white', 'gray.750');
   const settingsHeadingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
   const labelColor = useColorModeValue('gray.600', 'gray.400');

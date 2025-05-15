@@ -7,7 +7,7 @@ import {
   FormLabel,
   Select,
   useColorModeValue,
-  Tabs, 
+  Tabs,
   TabList,
   TabPanels,
   Tab,
@@ -63,13 +63,15 @@ function ConversionSettingsOrchestrator({
   }
 
   return (
-    <Box mt={10}>
+    // Removed mx="3xl" here, as the main container in Upload.js handles centering
+    // maxWidth="container.lg" is kept to control the width of this section
+    <Box mt={10} maxWidth="container.lg" px={0}> {/* Removed mx, adjusted px */}
       <Heading as="h3" size="lg" mb={6} textAlign="center" borderBottomWidth="2px" borderColor={borderColor} pb={3}>
         Conversion Settings
       </Heading>
 
       {/* Preset Selection */}
-      <FormControl mb={8} id="preset-selection">
+      <FormControl mb={8} id="preset-selection" px={{ base: 4, md: 0 }}> {/* Add padding to form control if needed */}
         <FormLabel htmlFor="presetSelect" color={labelColor} fontWeight="medium">Quick Presets</FormLabel>
         <Select id="presetSelect" value={selectedPreset} onChange={onPresetChange} focusBorderColor="blue.500" size="lg" bg={useColorModeValue("white", "gray.700")}>
           {presets.map(preset => (
@@ -79,7 +81,7 @@ function ConversionSettingsOrchestrator({
           ))}
         </Select>
       </FormControl>
-      
+
       <Tabs isLazy variant="enclosed-colored" colorScheme="blue" mt={6}>
         <TabList overflowX="auto" overflowY="hidden" pb={2}> {/* Allow horizontal scrolling for tabs on small screens */}
           <Tab>Trim</Tab>
@@ -113,7 +115,7 @@ function ConversionSettingsOrchestrator({
               cropX={cropX} setCropX={setCropX}
               cropY={cropY} setCropY={setCropY}
               cropW={cropW} setCropW={setCropW}
-              cropH={cropH} setCropH={setCropH}
+              cropH={cropH} setCropH={cropH}
             />
           </TabPanel>
           <TabPanel p={0}>
