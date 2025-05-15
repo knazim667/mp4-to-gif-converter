@@ -42,16 +42,26 @@ function TextOverlaySettings({
     }
   }, [textOverlay]);
 
-  // Basic color validation (e.g., not too long)
-  // Robust color validation is complex and often best left to the backend/rendering engine.
+  // Enhanced color validation
   const validateColorInput = (colorValue, setErrorFunc, fieldName) => {
-    if (colorValue && colorValue.length > 50) { // Increased arbitrary length limit
+    if (!colorValue || colorValue.trim() === '') { // Empty is fine, especially for optional BG
+      setErrorFunc('');
+      return;
+    }
+
+    // Regex for common CSS color formats:
+    // - Named colors (simple check for letters only, not exhaustive list)
+    // - #RGB, #RRGGBB, #RRGGBBAA
+    const colorPattern = /^(#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?([0-9a-fA-F]{2})?\b|[a-zA-Z]+)$/;
+
+    if (!colorPattern.test(colorValue.trim())) {
+      setErrorFunc(`Invalid ${fieldName}. Use names (e.g., red), hex (#FFF, #FF0000, #FF000080).`);
+    } else if (colorValue.length > 50) { // Keep a general length check
       setErrorFunc(`${fieldName} value seems too long. Use common color names or hex codes (e.g., #RRGGBB, #RGB).`);
     } else {
       setErrorFunc('');
     }
   };
-
   useEffect(() => {
     validateColorInput(textColor, setTextColorError, 'Text color');
   }, [textColor]);

@@ -590,7 +590,16 @@ function Upload() {
   } : null;
   
   return (
-    <Box bg={mainBg} borderRadius="xl" boxShadow="lg" p={{ base: 4, md: 8 }} color={mainText}>
+    <Box
+      bg={mainBg}
+      borderRadius="xl"
+      boxShadow="lg"
+      p={{ base: 4, md: 8 }}
+      color={mainText}
+      maxW="48rem" // Make the container wider
+      mx="auto" // Center the container on the page
+      w="full" // Ensure it takes full width up to maxW
+    >
       <Heading as="h2" size="xl" mb={8} textAlign="center" fontWeight="bold">
         Video to GIF & MP4 Converter
       </Heading>
