@@ -73,7 +73,7 @@ function FileUploadZone({
           colorScheme="blue"
           size="md"
           onClick={(e) => {
-            e.stopPropagation();
+            e.stopPropagation(); // Prevent click event from bubbling to the parent Box
             onBrowseClick();
           }}
         >

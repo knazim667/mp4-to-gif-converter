@@ -1,71 +1,100 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Heading, FormControl, FormLabel, Slider, SliderTrack, SliderFilledTrack, SliderThumb, SliderMark, Text } from '@chakra-ui/react';
+import { Box, Heading, FormControl, FormLabel, Slider, SliderTrack, SliderFilledTrack, SliderThumb, SliderMark, Text, useColorModeValue } from '@chakra-ui/react'; // Added useColorModeValue
 
 function TrimSlider({ duration, scenes = [], onTrimChange }) {
+  // Ensure duration is a valid number, default to a small value if not, to avoid issues
+  const safeDuration = typeof duration === 'number' && duration > 0 ? duration : 1; // Use 1s as a minimal duration
+
   const [start, setStart] = useState(0);
-  const [end, setEnd] = useState(duration);
+  const [end, setEnd] = useState(safeDuration); // Initialize end with safeDuration
+
+  const labelColor = useColorModeValue('gray.600', 'gray.400'); // Use color mode value for text
 
   useEffect(() => {
-    if (duration) {
-      setEnd(duration);
-      onTrimChange({ start, end: duration });
+    // When duration changes, update the end time, ensuring it doesn't go beyond the new duration
+    const newEnd = Math.min(end, safeDuration);
+    setEnd(newEnd);
+    // Also ensure start is not beyond the new duration
+    const newStart = Math.min(start, newEnd);
+    setStart(newStart);
+
+    // Call onTrimChange with the initial/adjusted values
+    if (typeof onTrimChange === 'function') { // Check if onTrimChange is a function
+        onTrimChange({ start: newStart, end: newEnd });
+    } else {
+         console.error("TrimSlider: onTrimChange prop is not a function.");
     }
-  }, [duration]);
+
+  }, [duration, safeDuration, onTrimChange]); // Add onTrimChange and safeDuration to dependencies
 
   const handleStartChange = (value) => {
-    // Find the nearest scene point
-    const nearestScene = scenes.reduce((prev, curr) => 
-      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev, value
-    );
-    const snappedValue = Math.abs(nearestScene - value) < 0.5 ? nearestScene : value;
-    
-    if (snappedValue < end) {
-      setStart(snappedValue);
-      onTrimChange({ start: snappedValue, end });
+    const snappedValue = value; // Simplified snapping for robustness, can re-add scene snapping if needed
+
+    // Ensure start does not exceed end
+    const newStart = Math.min(snappedValue, end);
+    setStart(newStart);
+    if (typeof onTrimChange === 'function') {
+        onTrimChange({ start: newStart, end });
+    } else {
+         console.error("TrimSlider: onTrimChange prop is not a function during start change.");
     }
   };
 
   const handleEndChange = (value) => {
-    // Find the nearest scene point
-    const nearestScene = scenes.reduce((prev, curr) => 
-      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev, value
-    );
-    const snappedValue = Math.abs(nearestScene - value) < 0.5 ? nearestScene : value;
-    
-    if (snappedValue > start) {
-      setEnd(snappedValue);
-      onTrimChange({ start, end: snappedValue });
+     const snappedValue = value; // Simplified snapping
+
+     // Ensure end does not go below start
+    const newEnd = Math.max(snappedValue, start);
+    setEnd(newEnd);
+    if (typeof onTrimChange === 'function') {
+        onTrimChange({ start, end: newEnd });
+    } else {
+         console.error("TrimSlider: onTrimChange prop is not a function during end change.");
     }
   };
 
+  // Optional: Display a message if duration is invalid
+  if (typeof duration !== 'number' || duration <= 0) {
+      return (
+           <Box>
+               <Heading as="h4" size="md" color={useColorModeValue('gray.800', 'whiteAlpha.900')} mb={2}>
+                   Trim Video
+               </Heading>
+               <Text color={labelColor}>Video duration is required for trimming.</Text>
+           </Box>
+      );
+  }
+
+
   return (
     <Box mt={4}>
-      <Heading as="h3" size="md" color="gray.800" mb={2}>
+      <Heading as="h3" size="md" color={useColorModeValue('gray.800', 'whiteAlpha.900')} mb={2}> {/* Use color mode value */}
         Trim Video
       </Heading>
       <Box>
         <FormControl>
-          <FormLabel fontSize="sm" color="gray.600">
+          <FormLabel fontSize="sm" color={labelColor}> {/* Use color mode value */}
             Start (s)
           </FormLabel>
           <Slider
             min={0}
-            max={duration}
+            max={safeDuration} // Use safe duration
             step={0.1}
             value={start}
             onChange={handleStartChange}
             focusThumbOnChange={false}
+             isDisabled={safeDuration <= 0} // Disable if duration is not valid
           >
-            <SliderTrack bg="gray.100">
+            <SliderTrack bg={useColorModeValue("gray.100", "gray.600")}> {/* Use color mode value */}
               <SliderFilledTrack bg="blue.500" />
             </SliderTrack>
-            {scenes.map((scene) => (
+            {(scenes || []).map((scene) => ( // Ensure scenes is an array
               <SliderMark
                 key={scene}
                 value={scene}
                 mt={2}
                 ml={-2}
-                color="gray.600"
+                color={useColorModeValue("gray.600", "gray.400")} 
                 fontSize="sm"
               >
                 |
@@ -73,32 +102,33 @@ function TrimSlider({ duration, scenes = [], onTrimChange }) {
             ))}
             <SliderThumb boxSize={6} />
           </Slider>
-          <Text fontSize="sm" color="gray.600">
+          <Text fontSize="sm" color={labelColor}> {/* Use color mode value */}
             {start.toFixed(1)}s
           </Text>
         </FormControl>
         <FormControl mt={2}>
-          <FormLabel fontSize="sm" color="gray.600">
+          <FormLabel fontSize="sm" color={labelColor}> {/* Use color mode value */}
             End (s)
           </FormLabel>
           <Slider
             min={0}
-            max={duration}
+            max={safeDuration} // Use safe duration
             step={0.1}
             value={end}
             onChange={handleEndChange}
             focusThumbOnChange={false}
+             isDisabled={safeDuration <= 0} // Disable if duration is not valid
           >
-            <SliderTrack bg="gray.100">
+            <SliderTrack bg={useColorModeValue("gray.100", "gray.600")}> {/* Use color mode value */}
               <SliderFilledTrack bg="blue.500" />
             </SliderTrack>
-            {scenes.map((scene) => (
+            {(scenes || []).map((scene) => ( // Ensure scenes is an array
               <SliderMark
                 key={scene}
                 value={scene}
                 mt={2}
                 ml={-2}
-                color="gray.600"
+                color={useColorModeValue("gray.600", "gray.400")} 
                 fontSize="sm"
               >
                 |
@@ -106,7 +136,7 @@ function TrimSlider({ duration, scenes = [], onTrimChange }) {
             ))}
             <SliderThumb boxSize={6} />
           </Slider>
-          <Text fontSize="sm" color="gray.600">
+          <Text fontSize="sm" color={labelColor}> {/* Use color mode value */}
             {end.toFixed(1)}s
           </Text>
         </FormControl>

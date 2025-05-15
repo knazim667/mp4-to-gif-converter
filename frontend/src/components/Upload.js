@@ -1,45 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import VideoPlayer from './VideoPlayer';
-// import TrimSlider from './TrimSlider'; // Now part of ConversionSettingsOrchestrator
 import {
   Box, Heading, Text, Button, Input, FormControl, FormLabel, Checkbox, HStack,
   SimpleGrid, Center, Image, Link, useColorModeValue, Select, VStack,
   Alert, AlertIcon, AlertTitle, AlertDescription, CloseButton, Spinner, Progress,
   NumberInput, NumberInputField, NumberInputStepper, NumberIncrementStepper, NumberDecrementStepper, Divider, Icon
 } from '@chakra-ui/react';
-import { FiUploadCloud } from 'react-icons/fi'; // Example icon
+import { FiUploadCloud } from 'react-icons/fi';
 import FileUploadZone from './FileUploadZone';
 import OutputDisplay from './OutputDisplay';
 import ConversionSettingsOrchestrator from './ConversionSettingsOrchestrator';
-
-/*
-Upcoming Features & Potential Enhancements:
-
-* Real-time Previews:
-    * Live preview for text overlay adjustments (font, size, color, position).
-    * Attempt real-time feedback for some simpler effects.
-* Granular Progress Indicators:
-    * Detailed progress bars for file uploads (percentage).
-    * Step-by-step progress updates during the conversion process (e.g., "Trimming...", "Applying effects...", "Encoding...").
-* Preset Options:
-    * Pre-defined configurations for common use cases (e.g., "High-Quality GIF," "Small Email GIF," "Social Media MP4").
-* Additional Video Effects/Filters:
-    * Brightness, contrast, saturation adjustments.
-    * Grayscale, Sepia filters.
-* Enhanced Visual Cropper:
-    * Aspect ratio locking for crop selection.
-    * Real-time display of numeric crop values (X, Y, W, H) during visual selection.
-    * Snapping options (to edges, center).
-* Componentization of Settings:
-    * Refactor large UI sections (e.g., Output Options, Crop, Text Overlay, Effects) into smaller, more manageable React components.
-* User Configurations/Templates:
-    * Allow users to save their current set of conversion settings as a template.
-    * Ability to load saved templates for frequent tasks.
-* Advanced GIF Options:
-    * Dithering options for better color quality in GIFs.
-    * Loop count control.
-*/
 
 function Upload() {
 
@@ -47,7 +18,7 @@ function Upload() {
   const presets = [
     {
       name: "Default (Custom)",
-      settings: { fps: 10, width: 320, includeAudio: false, speedFactor: 1.0, reverse: false, outputFormat: 'gif' } // Default matches initial states
+      settings: { fps: 10, width: 320, includeAudio: false, speedFactor: 1.0, reverse: false, outputFormat: 'gif' }
     },
     {
       name: "High-Quality GIF",
@@ -70,22 +41,21 @@ function Upload() {
   // File and URL states
   const [file, setFile] = useState(null);
   const [videoUrlInput, setVideoUrlInput] = useState('');
-  const [uploadedFilename, setUploadedFilename] = useState(''); // Filename on S3 after upload/URL processing
-  const [videoPlayerKey, setVideoPlayerKey] = useState(Date.now()); // Key for VideoPlayer
-  const [videoSrc, setVideoSrc] = useState(null); // For local file preview
+  const [uploadedFilename, setUploadedFilename] = useState('');
+  const [videoPlayerKey, setVideoPlayerKey] = useState(Date.now());
+  const [videoSrc, setVideoSrc] = useState(null);
 
 
-  const [selectedPreset, setSelectedPreset] = useState(presets[0].name); // Default to the first preset
+  const [selectedPreset, setSelectedPreset] = useState(presets[0].name);
 
   // UI states
-  const [message, setMessage] = useState({ text: '', type: 'info' }); // type: 'info', 'success', 'error'
+  const [message, setMessage] = useState({ text: '', type: 'info' });
   const [isDragging, setIsDragging] = useState(false);
-  // const [isLoading, setIsLoading] = useState(false); // For general loading states - Replaced by specific loaders
-  const [isAnalyzing, setIsAnalyzing] = useState(false); // Specifically for the /analyze step
-  const [isUploading, setIsUploading] = useState(false); // Specifically for file upload
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isConverting, setIsConverting] = useState(false);
-  const [outputUrl, setOutputUrl] = useState(null); // To display the generated GIF or MP4 (renamed from gifUrl)
+  const [outputUrl, setOutputUrl] = useState(null);
 
 
   // GIF Conversion settings states
@@ -113,41 +83,35 @@ function Upload() {
   // State for visual cropper
   const [showVisualCropper, setShowVisualCropper] = useState(false);
   const [videoPreviewDimensions, setVideoPreviewDimensions] = useState({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 });
-  const [selectionRect, setSelectionRect] = useState({ x: 0, y: 0, width: 100, height: 100 }); // Initial/default selection for visual cropper
+  const [selectionRect, setSelectionRect] = useState({ x: 0, y: 0, width: 100, height: 100 });
 
 
   // State for visual cropper interaction
   const [interaction, setInteraction] = useState({
     type: null, // 'drag', 'resize'
     handle: null, // e.g., 'body', 'se' (south-east)
-    startX: 0,    // Mouse X at interaction start (relative to visualCropContainer)
-    startY: 0,    // Mouse Y at interaction start (relative to visualCropContainer)
-    initialRect: null, // selectionRect at interaction start
+    startX: 0,
+    startY: 0,
+    initialRect: null,
   });
   const visualCropContainerRef = useRef(null);
-  // const [gifUrl, setGifUrl] = useState(''); // URL of the converted GIF - Replaced by outputUrl
 
   const fileInputRef = useRef(null);
   const apiUrl = process.env.REACT_APP_API_URL;
 
   // Chakra UI color mode values
-  const borderColor = useColorModeValue('gray.300', 'gray.600'); // For dropzone border
-  const dragActiveBg = useColorModeValue('blue.50', 'blue.900'); // For dropzone when dragging
-  const dropZoneHoverBorder = useColorModeValue('blue.400', 'blue.500'); // For dropzone border on hover
-  const mainBg = useColorModeValue('white', 'gray.800'); // Main component background
-  const mainText = useColorModeValue('gray.800', 'whiteAlpha.900'); // Main component text
-  const labelColor = useColorModeValue('gray.600', 'gray.400'); // For FormLabel
-  const dropZoneInitialBg = useColorModeValue('gray.50', 'gray.700'); // Initial bg for dropzone
-  const selectedFileNameColor = useColorModeValue('blue.600', 'blue.300'); // Color for selected file name
-  const gifResultBoxBg = useColorModeValue('gray.50', 'gray.700'); // BG for the GIF result box
+  const borderColor = useColorModeValue('gray.300', 'gray.600');
+  const dragActiveBg = useColorModeValue('blue.50', 'blue.900');
+  const dropZoneHoverBorder = useColorModeValue('blue.400', 'blue.500');
+  const mainBg = useColorModeValue('white', 'gray.800');
+  const mainText = useColorModeValue('gray.800', 'whiteAlpha.900');
+  const labelColor = useColorModeValue('gray.600', 'gray.400');
+  const dropZoneInitialBg = useColorModeValue('gray.50', 'gray.700');
+  const selectedFileNameColor = useColorModeValue('blue.600', 'blue.300');
+  const gifResultBoxBg = useColorModeValue('gray.50', 'gray.700');
 
-  // Hoisted color mode values previously used directly in JSX
-  const settingsBoxBg = useColorModeValue('white', 'gray.750');
-  const settingsHeadingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
-  const resultHeadingColor = useColorModeValue('purple.600', 'purple.300');
-  const headingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
-  const selectBgColor = useColorModeValue("white", "gray.700"); // Moved here
-  const progressBoxBgColor = useColorModeValue("gray.50", "gray.700"); // For progress indicators
+  // Hoisted color mode values
+  const progressBoxBgColor = useColorModeValue("gray.50", "gray.700");
 
 
   const previousVideoSrcRef = useRef(null);
@@ -169,8 +133,8 @@ function Upload() {
   }, [videoSrc]);
 
   const resetStatesForNewVideo = () => {
-    setFile(null); // Added this - should reset file state too
-    setVideoUrlInput(''); // Added this - should reset url input too
+    setFile(null);
+    setVideoUrlInput('');
     setVideoSrc(null);
     setUploadedFilename('');
     setVideoPlayerKey(Date.now());
@@ -188,8 +152,8 @@ function Upload() {
     setIsAnalyzing(false);
     setIsConverting(false);
     setMessage({ text: '', type: 'info' });
-    setSelectedPreset(presets[0].name); // Reset to default preset
-    setTextOverlay(''); // Also reset text overlay settings
+    setSelectedPreset(presets[0].name);
+    setTextOverlay('');
     setFontSize(20);
     setTextPosition('center');
     setTextColor('white');
@@ -202,88 +166,93 @@ function Upload() {
   };
 
 
-  const resetConversionStates = () => { // Kept for potential specific resets if needed
-    setOutputUrl('');
-    // trim, scenePoints, videoDuration are related to video analysis, not just conversion state
-    // setTrim({ start: 0, end: null }); // Might not want to reset trim here
-    // setScenePoints([]); // Might not want to reset scenes here
-    // setVideoDuration(0); // Might not want to reset duration here
-    setCropX(null);
-    setCropY(null);
-    setCropW(null);
-    setCropH(null);
-    setShowVisualCropper(false);
-    // Don't reset text overlay, effects, output options here as they are settings for conversion
-  };
-
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile && ['video/mp4', 'video/avi', 'video/quicktime', 'video/webm', 'video/x-matroska'].includes(selectedFile.type)) {
-      resetStatesForNewVideo(); // Reset all states for a new video
-      setFile(selectedFile);
-      setVideoSrc(URL.createObjectURL(selectedFile)); // Show local preview immediately
-      setVideoPlayerKey(Date.now()); // Ensure player updates for local preview
-
-      const formData = new FormData();
-      formData.append('video', selectedFile);
-
-      setMessage({ text: 'Uploading video...', type: 'info' });
-      // setUploadedFilename(''); // Already in resetStatesForNewVideo
-      // setVideoDuration(0); // Already in resetStatesForNewVideo
-      // setOutputUrl(null); // Already in resetStatesForNewVideo
-      setIsUploading(true);
-      setUploadProgress(0);
-
-      axios.post(`${apiUrl}/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadProgress(percentCompleted);
-        },
-      })
-      .then(response => {
-        setUploadedFilename(response.data.filename);
-        setMessage({ text: 'Video uploaded. Ready to process or convert.', type: 'success' });
-        // Local preview is already showing. /analyze will use the uploadedFilename.
-        // Get initial duration for local preview
-        const video = document.createElement('video');
-        video.preload = 'metadata';
-        video.src = URL.createObjectURL(selectedFile); // Use the same local blob
-        video.onloadedmetadata = () => {
-          setVideoDuration(video.duration);
-          setTrim({ start: 0, end: video.duration });
-          handleVideoMetadata({
-              width: video.videoWidth,
-              height: video.videoHeight,
-              naturalWidth: video.videoWidth,
-              naturalHeight: video.videoHeight
-          });
-        };
-         video.onerror = () => {
-            console.error("Error loading video metadata from local file.");
-            setMessage({ text: "Could not load video metadata. Try a different file or URL.", type: 'error' });
-            // Optionally reset states if metadata loading fails
-            // resetStatesForNewVideo();
-         };
-      })
-      .catch(error => {
-        console.error("Error uploading file:", error.response ? error.response.data : error.message);
-        setMessage({ text: `Upload failed: ${error.response ? error.response.data.error : error.message}`, type: 'error' });
-        // setFile(null); // Already in resetStatesForNewVideo
-        // setVideoSrc(null); // Already in resetStatesForNewVideo
-        resetStatesForNewVideo(); // Ensure all states are reset on upload failure
-      })
-      .finally(() => {
-        setIsUploading(false);
-        // setUploadProgress(0); // Or let it stay at 100
-      });
-      // setVideoUrlInput(''); // Already in resetStatesForNewVideo
-    } else {
-      // setFile(null); // Already in resetStatesForNewVideo
-      // setVideoSrc(null); // Already in resetStatesForNewVideo
-      resetStatesForNewVideo(); // Reset all states on invalid file selection
-      setMessage({ text: 'Please select a valid video file (MP4, AVI, MOV, WEBM, MKV).', type: 'error' });
+    const selectedFile = e.target.files?.[0]; // Use optional chaining
+    if (!selectedFile) {
+        resetStatesForNewVideo();
+        setMessage({ text: 'No file selected.', type: 'info' });
+        return;
     }
+
+    const allowedTypes = ['video/mp4', 'video/avi', 'video/quicktime', 'video/webm', 'video/x-matroska'];
+    if (!allowedTypes.includes(selectedFile.type)) {
+        resetStatesForNewVideo();
+        setMessage({ text: 'Please select a valid video file (MP4, AVI, MOV, WEBM, MKV).', type: 'error' });
+        return;
+    }
+
+    resetStatesForNewVideo();
+    setFile(selectedFile);
+    const localVideoUrl = URL.createObjectURL(selectedFile);
+    setVideoSrc(localVideoUrl); // Show local preview immediately
+    setVideoPlayerKey(Date.now()); // Ensure player updates for local preview
+
+    const formData = new FormData();
+    formData.append('video', selectedFile);
+
+    setMessage({ text: `Uploading "${selectedFile.name}"...`, type: 'info' });
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    axios.post(`${apiUrl}/upload`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) { // Check if total is available to avoid division by zero
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percentCompleted);
+        }
+      },
+    })
+    .then(response => {
+      if (response.data && response.data.filename) {
+          setUploadedFilename(response.data.filename);
+          setMessage({ text: 'Video uploaded successfully. Ready to analyze.', type: 'success' });
+          // Get initial duration and dimensions for local preview
+          const video = document.createElement('video');
+          video.preload = 'metadata';
+          video.src = localVideoUrl; // Use the same local blob for metadata
+          video.onloadedmetadata = () => {
+              setVideoDuration(video.duration);
+              setTrim({ start: 0, end: video.duration });
+              handleVideoMetadata({
+                  width: video.videoWidth,
+                  height: video.videoHeight,
+                  naturalWidth: video.videoWidth,
+                  naturalHeight: video.videoHeight
+              });
+              video.remove(); // Clean up the temporary video element
+              // Optionally trigger auto-analysis after upload success
+              // handleAnalyzeVideo(response.data.filename);
+          };
+          video.onerror = () => {
+              console.error("Error loading video metadata from local file.");
+              setMessage({ text: "Could not load video metadata from local file. Please try again.", type: 'error' });
+              video.remove(); // Clean up the temporary video element
+              // Decide if you want to reset or allow proceeding without metadata
+              // For now, keep uploadedFilename so analyze button is enabled
+          };
+           // If metadata is already available (e.g., cached), trigger the handler immediately
+          if (video.readyState >= 1) {
+               video.onloadedmetadata(); // Manually trigger
+          }
+      } else {
+          // Handle unexpected response structure
+          console.error("Upload response missing filename:", response.data);
+          setMessage({ text: 'Upload failed: Unexpected server response.', type: 'error' });
+          resetStatesForNewVideo(); // Reset on unexpected response
+      }
+    })
+    .catch(error => {
+      console.error("Error uploading file:", error);
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown upload error.';
+      setMessage({ text: `Upload failed: ${errorMessage}`, type: 'error' });
+      resetStatesForNewVideo(); // Reset on upload failure
+    })
+    .finally(() => {
+      setIsUploading(false);
+      setUploadProgress(0); // Reset progress bar
+    });
+    setVideoUrlInput(''); // Clear URL input when file is selected
   };
 
 
@@ -299,13 +268,12 @@ function Upload() {
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    const droppedFile = e.dataTransfer.files[0];
-    // Simulate file selection to reuse handleFileChange logic
+    const droppedFile = e.dataTransfer.files?.[0]; // Use optional chaining
     if (droppedFile) {
         const mockEvent = { target: { files: [droppedFile] } };
         handleFileChange(mockEvent);
     } else {
-      setMessage({ text: 'Please drop a valid video file.', type: 'error' });
+      setMessage({ text: 'Could not drop a valid video file.', type: 'error' });
     }
   };
 
@@ -316,98 +284,104 @@ function Upload() {
     }
     resetStatesForNewVideo(); // Reset all states for a new video
     setMessage({ text: 'Processing URL...', type: 'info' });
-    // setUploadedFilename(''); // Already in resetStatesForNewVideo
-    // setVideoDuration(0); // Already in resetStatesForNewVideo
-    // setOutputUrl(null); // Already in resetStatesForNewVideo
     setIsAnalyzing(true); // Use isAnalyzing for URL processing as it leads to analysis
 
     axios.post(`${apiUrl}/process-url`, { url: videoUrlInput })
       .then(response => {
-        setUploadedFilename(response.data.filename);
-        setMessage({ text: `Video from URL processed: ${response.data.filename}. Ready to analyze.`, type: 'success' });
-        // Trigger analysis after successful URL processing
-        handleAnalyzeVideo(response.data.filename);
+        if (response.data && response.data.filename) {
+            setUploadedFilename(response.data.filename);
+            setMessage({ text: `Video from URL processed. Ready to analyze.`, type: 'success' });
+            // Trigger analysis after successful URL processing
+            handleAnalyzeVideo(response.data.filename);
+        } else {
+             console.error("Process URL response missing filename:", response.data);
+             setMessage({ text: 'URL processing failed: Unexpected server response.', type: 'error' });
+             resetStatesForNewVideo(); // Reset on unexpected response
+        }
       })
       .catch(error => {
-        console.error("Error processing URL:", error.response ? error.response.data : error.message);
-        setMessage({ text: `URL processing failed: ${error.response ? error.response.data.error : error.message}`, type: 'error' });
-        setIsAnalyzing(false); // Stop analyzing if URL processing fails
-        resetStatesForNewVideo(); // Ensure all states are reset on URL processing failure
+        console.error("Error processing URL:", error);
+        const errorMessage = error.response?.data?.error || error.message || 'Unknown URL processing error.';
+        setMessage({ text: `URL processing failed: ${errorMessage}`, type: 'error' });
+        setIsAnalyzing(false);
+        resetStatesForNewVideo(); // Reset on URL processing failure
       });
   };
 
-  // Renamed from handleProcessVideo to be more specific
   const handleAnalyzeVideo = async (filenameToAnalyze = uploadedFilename) => {
     if (!filenameToAnalyze) {
-      setMessage({ text: 'No video selected or processed to analyze.', type: 'error' });
+      setMessage({ text: 'No video available to analyze.', type: 'error' });
       return;
     }
+     if (isProcessing) { // Prevent multiple analysis clicks
+         console.log("Analysis already in progress or busy.");
+         return;
+     }
+
     setMessage({ text: 'Analyzing video...', type: 'info' });
-    const videoSrcPriorToAnalysis = videoSrc;
-    // setOutputUrl(null); // Already in resetStatesForNewVideo or resetConversionStates if used after initial load
     setIsAnalyzing(true);
+    setOutputUrl(null); // Clear previous output
 
     try {
       const analyzeResponse = await axios.post(`${apiUrl}/analyze`, { filename: filenameToAnalyze });
-      setVideoDuration(analyzeResponse.data.duration);
-      setScenePoints(analyzeResponse.data.scenes || []);
-      setTrim({ start: 0, end: analyzeResponse.data.duration });
+      if (analyzeResponse.data) {
+            setVideoDuration(analyzeResponse.data.duration || 0); // Default to 0 if duration is missing
+            setScenePoints(analyzeResponse.data.scenes || []); // Default to empty array
+            setTrim({ start: 0, end: analyzeResponse.data.duration || 0 }); // Use default 0 if duration missing
 
-      const backendPreviewUrl = analyzeResponse.data.preview_url;
-      if (backendPreviewUrl) {
-        setVideoSrc(backendPreviewUrl);
-      } else if (videoSrcPriorToAnalysis && videoSrcPriorToAnalysis.startsWith('blob:')) {
-        // If no backend preview, try to keep the local preview if it exists
-        if (videoSrc !== videoSrcPriorToAnalysis) {
-          setVideoSrc(videoSrcPriorToAnalysis);
-        }
+            const backendPreviewUrl = analyzeResponse.data.preview_url;
+            if (backendPreviewUrl) {
+              setVideoSrc(backendPreviewUrl);
+            } else if (videoSrc && videoSrc.startsWith('blob:')) {
+               // Keep local preview if no backend preview is provided
+               // No need to set videoSrc if it's already the correct local blob
+            } else {
+              setVideoSrc(null); // No preview available from backend or locally
+            }
+
+            // Update video dimensions after analysis if backend provides them or rely on the current videoSrc
+            const currentPreviewSrc = backendPreviewUrl || videoSrc;
+            if (currentPreviewSrc) {
+                const video = document.createElement('video');
+                video.preload = 'metadata';
+                video.src = currentPreviewSrc;
+                 video.onloadedmetadata = () => {
+                     handleVideoMetadata({
+                         width: video.videoWidth,
+                         height: video.videoHeight,
+                         naturalWidth: video.videoWidth,
+                         naturalHeight: video.videoHeight
+                     });
+                      video.remove(); // Clean up
+                 };
+                 video.onerror = () => {
+                      console.error("Error loading video metadata after analysis for preview.");
+                       // Proceed with analysis results but inform user about preview issue
+                      setMessage({ text: "Analysis complete, but could not load video preview.", type: 'warning' });
+                       video.remove(); // Clean up
+                 };
+                  // If metadata is already available
+                 if (video.readyState >= 1) {
+                     video.onloadedmetadata(); // Manually trigger
+                 }
+            } else {
+                 // No video source to load metadata from
+                handleVideoMetadata({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 });
+            }
+
+            setMessage({ text: `Video analyzed successfully. Duration: ${analyzeResponse.data.duration?.toFixed(1) || 'N/A'}s. Ready to convert.`, type: 'success' });
       } else {
-        setVideoSrc(null); // No preview available
+           console.error("Analysis response is empty or invalid:", analyzeResponse.data);
+           setMessage({ text: 'Analysis failed: Unexpected server response.', type: 'error' });
+           resetStatesForNewVideo(); // Reset on invalid analysis response
       }
-       // Update video dimensions after analysis as backend might provide them or we use the current videoSrc
-      const video = document.createElement('video');
-       video.preload = 'metadata';
-       video.src = backendPreviewUrl || videoSrcPriorToAnalysis; // Use backend URL or local blob
-       video.onloadedmetadata = () => {
-            handleVideoMetadata({
-                width: video.videoWidth,
-                height: video.videoHeight,
-                naturalWidth: video.videoWidth,
-                naturalHeight: video.videoHeight
-            });
-             video.remove(); // Clean up the temporary video element
-        };
-        video.onerror = () => {
-             console.error("Error loading video metadata after analysis.");
-             // Proceed without dimensions or handle error appropriately
-             video.remove(); // Clean up the temporary video element
-        };
-        // If video is already loaded (e.g., local preview), metadata might be available immediately
-         if (video.readyState >= 1) {
-            handleVideoMetadata({
-                width: video.videoWidth,
-                height: video.videoHeight,
-                naturalWidth: video.videoWidth,
-                naturalHeight: video.videoHeight
-            });
-             video.remove(); // Clean up the temporary video element
-         }
-
-
-      setMessage({ text: `Video analyzed successfully. Ready to convert.`, type: 'success' });
     } catch (error) {
-      console.error("Error analyzing video:", error.response ? error.response.data : error.message);
-      setMessage({ text: `Analysis failed: ${error.response ? error.response.data.error : error.message}`, type: 'error' });
-      setUploadedFilename(''); // Clear filename if analysis fails
-      setVideoSrc(null); // Clear video source on analysis failure
-      setVideoDuration(0); // Reset duration
-      setTrim({ start: 0, end: 0 }); // Reset trim
-      setScenePoints([]); // Reset scenes
-      setVideoPreviewDimensions({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 }); // Reset dimensions
-       setCropX(null); setCropY(null); setCropW(null); setCropH(null); // Reset crop
-       setShowVisualCropper(false); // Hide cropper
+      console.error("Error analyzing video:", error);
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown analysis error.';
+      setMessage({ text: `Analysis failed: ${errorMessage}`, type: 'error' });
+      resetStatesForNewVideo(); // Reset on analysis failure
     } finally {
-      setVideoPlayerKey(Date.now());
+      setVideoPlayerKey(Date.now()); // Force video player re-render
       setIsAnalyzing(false);
     }
   };
@@ -418,18 +392,21 @@ function Upload() {
       setMessage({ text: 'Please upload or process a video first.', type: 'error' });
       return;
     }
-     if (isUploading || isAnalyzing || isConverting) {
+    if (videoDuration <= 0) {
+         setMessage({ text: 'Video duration is required for conversion. Please try analyzing again.', type: 'error' });
+         return;
+    }
+     if (isProcessing) {
          console.log("Conversion already in progress or busy.");
-         return; // Prevent multiple clicks while busy
+         return;
      }
 
     setMessage({ text: 'Starting conversion...', type: 'info' });
     setOutputUrl(null);
     setIsConverting(true);
 
-    // Determine output format based on includeAudio state
     const finalOutputFormat = includeAudio ? 'mp4' : 'gif';
-    setOutputFormat(finalOutputFormat); // Update outputFormat state for UI text
+    setOutputFormat(finalOutputFormat);
 
     const conversionSettings = {
       filename: uploadedFilename,
@@ -437,15 +414,15 @@ function Upload() {
       width,
       start_time: trim.start,
       end_time: trim.end,
-      text: textOverlay || null, // Send null if textOverlay is empty
+      text: textOverlay || null,
       font_size: fontSize,
       text_position: textPosition,
       text_color: textColor,
-      text_bg_color: textBgColor || null, // Send null if textBgColor is empty
+      text_bg_color: textBgColor || null,
       font_style: fontStyle,
       speed_factor: speedFactor,
       reverse: reverse,
-      include_audio: finalOutputFormat === 'mp4', // Only include audio if output is MP4
+      include_audio: finalOutputFormat === 'mp4',
       output_format: finalOutputFormat,
       crop_x: cropX,
       crop_y: cropY,
@@ -453,16 +430,30 @@ function Upload() {
       crop_h: cropH,
     };
 
-
     try {
-      const response = await axios.post(`${apiUrl}/convert`, conversionSettings);
-      setMessage({ text: `Successfully converted to ${finalOutputFormat.toUpperCase()}!`, type: 'success' });
-      setOutputUrl(response.data.url);
-      setVideoPlayerKey(Date.now()); // Re-key to update player with new output
+      const response = await axios.post(`${apiUrl}/convert`, conversionSettings, {
+          // Optional: Add timeout for conversion
+          // timeout: 600000 // e.g., 10 minutes
+      });
+      if (response.data && response.data.url) {
+          setMessage({ text: `Successfully converted to ${finalOutputFormat.toUpperCase()}!`, type: 'success' });
+          setOutputUrl(response.data.url);
+          setVideoPlayerKey(Date.now()); // Re-key to update player with new output
+      } else {
+           console.error("Convert response missing URL:", response.data);
+           setMessage({ text: `Conversion failed: Unexpected server response.`, type: 'error' });
+           setOutputUrl(null); // Clear output URL on failure
+      }
     } catch (error) {
-      console.error("Error converting video:", error.response ? error.response.data : error.message);
-      setMessage({ text: `Conversion failed: ${error.response ? error.response.data.error : error.message}`, type: 'error' });
-      setOutputUrl(null); // Clear output URL on conversion failure
+      console.error("Error converting video:", error);
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown conversion error.';
+       // Check for specific FFmpeg errors or timeouts if your backend provides them
+      if (errorMessage.includes('ffmpeg') || error.code === 'ECONNABORTED') {
+           setMessage({ text: `Conversion failed (Processing Error): ${errorMessage}. Try adjusting settings like duration, resolution, or effects.`, type: 'error' });
+      } else {
+           setMessage({ text: `Conversion failed: ${errorMessage}`, type: 'error' });
+      }
+      setOutputUrl(null); // Clear output URL on failure
     } finally {
       setIsConverting(false);
     }
@@ -473,34 +464,35 @@ function Upload() {
   };
 
   const handleVideoMetadata = useCallback(({ width, height, naturalWidth, naturalHeight }) => {
-    setVideoPreviewDimensions({ width, height, naturalWidth, naturalHeight });
+    setVideoPreviewDimensions({ width: width || 0, height: height || 0, naturalWidth: naturalWidth || 0, naturalHeight: naturalHeight || 0 });
 
+    // Initialize or reset crop selection based on new video dimensions
     if (naturalWidth > 0 && naturalHeight > 0) {
-        const initialX = 0;
-        const initialY = 0;
-        const initialSelectionWidth = naturalWidth;
-        const initialSelectionHeight = naturalHeight;
+        // Initialize to full video size if no crop was previously set
+        const initialX = cropX !== null ? cropX : 0;
+        const initialY = cropY !== null ? cropY : 0;
+        const initialWidth = cropW !== null ? cropW : naturalWidth;
+        const initialHeight = cropH !== null ? cropH : naturalHeight;
 
-        // Call handleVisualCropChange to initialize selectionRect based on video metadata
-        // This also sets the cropX,Y,W,H states
-        handleVisualCropChange({
-            x: initialX,
-            y: initialY,
-            width: initialSelectionWidth,
-            height: initialSelectionHeight,
-            selectionNaturalWidth: naturalWidth,
-            selectionNaturalHeight: naturalHeight
-        });
+         // Ensure initial selection is within new bounds
+         const validatedInitialRect = {
+             x: Math.max(0, Math.min(initialX, naturalWidth - (initialWidth > 0 ? initialWidth : naturalWidth))),
+             y: Math.max(0, Math.min(initialY, naturalHeight - (initialHeight > 0 ? initialHeight : naturalHeight))),
+             width: Math.min(initialWidth > 0 ? initialWidth : naturalWidth, naturalWidth - Math.max(0, initialX)),
+             height: Math.min(initialHeight > 0 ? initialHeight : naturalHeight, naturalHeight - Math.max(0, initialY)),
+             selectionNaturalWidth: naturalWidth,
+             selectionNaturalHeight: naturalHeight,
+         };
+        handleVisualCropChange(validatedInitialRect);
     } else {
          // Reset crop and selection if dimensions are invalid
         handleVisualCropChange({
             x: 0, y: 0, width: 0, height: 0,
             selectionNaturalWidth: 0, selectionNaturalHeight: 0
         });
+         setCropX(null); setCropY(null); setCropW(null); setCropH(null); // Explicitly set crop to null
     }
-    // This useCallback itself does not depend on handleVisualCropChange
-    // as handleVisualCropChange is also a useCallback that is stable
-  }, []);
+  }, [cropX, cropY, cropW, cropH, handleVisualCropChange]); // Added crop dependencies
 
 
   const handleVisualCropChange = useCallback((newRect) => {
@@ -519,20 +511,21 @@ function Upload() {
     validatedRect.height = Math.max(minDimension, validatedRect.height);
 
     if (validatedRect.selectionNaturalWidth > 0 && validatedRect.selectionNaturalHeight > 0) {
-        // Clamp position to prevent exceeding bounds
+        // Clamp position to prevent exceeding bounds based on the *current* size
         validatedRect.x = Math.max(0, Math.min(validatedRect.x, validatedRect.selectionNaturalWidth - validatedRect.width));
         validatedRect.y = Math.max(0, Math.min(validatedRect.y, validatedRect.selectionNaturalHeight - validatedRect.height));
 
-        // Re-calculate size based on clamped position and natural dimensions
-         validatedRect.width = Math.min(validatedRect.width, validatedRect.selectionNaturalWidth - validatedRect.x);
+         // Recalculate size based on clamped position to ensure it doesn't go beyond bounds
+        validatedRect.width = Math.min(validatedRect.width, validatedRect.selectionNaturalWidth - validatedRect.x);
         validatedRect.height = Math.min(validatedRect.height, validatedRect.selectionNaturalHeight - validatedRect.y);
     }
 
     // Update states. These are stable setters and don't need to be in useCallback dependencies.
-    setCropX(validatedRect.x);
-    setCropY(validatedRect.y);
-    setCropW(validatedRect.width);
-    setCropH(validatedRect.height);
+    setCropX(validatedRect.x === 0 && validatedRect.width === validatedRect.selectionNaturalWidth ? null : validatedRect.x); // Set to null if full width from x=0
+    setCropY(validatedRect.y === 0 && validatedRect.height === validatedRect.selectionNaturalHeight ? null : validatedRect.y); // Set to null if full height from y=0
+    setCropW(validatedRect.width === validatedRect.selectionNaturalWidth && validatedRect.x === 0 ? null : validatedRect.width); // Set to null if full width
+    setCropH(validatedRect.height === validatedRect.selectionNaturalHeight && validatedRect.y === 0 ? null : validatedRect.height); // Set to null if full height
+
     // selectionRect is local state managed by this hook, updating it here is fine
     setSelectionRect(validatedRect);
 
@@ -540,121 +533,171 @@ function Upload() {
 
 
   useEffect(() => {
-    // Update crop state when visual cropper is hidden.
-    // When visual cropper is shown, handleVideoMetadata initializes crop via handleVisualCropChange.
-    // This useEffect ensures that when you switch back to numerical inputs,
-    // the numerical inputs reflect the last visual selection.
-    if (!showVisualCropper && videoPreviewDimensions.naturalWidth > 0 && videoPreviewDimensions.naturalHeight > 0) {
-        // Use a slight delay to ensure selectionRect is updated after the last mouseup event
-        const updateCrop = setTimeout(() => {
-             setCropX(selectionRect.x);
-             setCropY(selectionRect.y);
-             setCropW(selectionRect.width);
-             setCropH(selectionRect.height);
-        }, 0); // A small delay like 0 or a few ms can sometimes help
+    // This useEffect syncs the numerical crop inputs with the visual selectionRect
+    // when the visual cropper is hidden, or when video source/dimensions change.
+    // It also initializes the visual selectionRect when the visual cropper is shown.
 
-        return () => clearTimeout(updateCrop);
+    // Initialize or update selectionRect when showing the cropper or dimensions change
+    if (showVisualCropper && videoPreviewDimensions.naturalWidth > 0 && videoPreviewDimensions.naturalHeight > 0) {
+         const initialRect = {
+            // Use current crop state if set, otherwise default to full video dimensions
+            x: cropX !== null ? cropX : 0,
+            y: cropY !== null ? cropY : 0,
+            width: cropW !== null ? cropW : videoPreviewDimensions.naturalWidth,
+            height: cropH !== null ? cropH : videoPreviewDimensions.naturalHeight,
+            selectionNaturalWidth: videoPreviewDimensions.naturalWidth,
+            selectionNaturalHeight: videoPreviewDimensions.naturalHeight,
+         };
+
+         // Validate and clamp the initial selection rect to be within bounds
+         const validatedInitialRect = {
+             x: Math.max(0, Math.min(initialRect.x, initialRect.selectionNaturalWidth - (initialRect.width > 0 ? initialRect.width : initialRect.selectionNaturalWidth))),
+             y: Math.max(0, Math.min(initialRect.y, initialRect.selectionNaturalHeight - (initialRect.height > 0 ? initialRect.height : initialRect.selectionNaturalHeight))),
+             width: Math.min(initialRect.width > 0 ? initialRect.width : initialRect.selectionNaturalWidth, initialRect.selectionNaturalWidth - Math.max(0, initialRect.x)),
+             height: Math.min(initialRect.height > 0 ? initialRect.height : initialRect.selectionNaturalHeight, initialRect.selectionNaturalHeight - Math.max(0, initialRect.y)),
+              selectionNaturalWidth: initialRect.selectionNaturalWidth,
+              selectionNaturalHeight: initialRect.selectionNaturalHeight,
+         };
+         validatedInitialRect.width = Math.max(10, validatedInitialRect.width); // Ensure min dimension
+         validatedInitialRect.height = Math.max(10, validatedInitialRect.height); // Ensure min dimension
+
+
+        setSelectionRect(validatedInitialRect);
+
+    } else if (!showVisualCropper && videoPreviewDimensions.naturalWidth > 0 && videoPreviewDimensions.naturalHeight > 0) {
+        // When hiding the visual cropper, update cropX,Y,W,H based on the final selectionRect
+        // Add a small delay to ensure the last mouseup event has processed its state update
+        const updateCrop = setTimeout(() => {
+             setCropX(selectionRect.x === 0 && selectionRect.width === selectionRect.selectionNaturalWidth ? null : selectionRect.x);
+             setCropY(selectionRect.y === 0 && selectionRect.height === selectionRect.selectionNaturalHeight ? null : selectionRect.y);
+             setCropW(selectionRect.width === selectionRect.selectionNaturalWidth && selectionRect.x === 0 ? null : selectionRect.width);
+             setCropH(selectionRect.height === selectionRect.selectionNaturalHeight && selectionRect.y === 0 ? null : selectionRect.height);
+        }, 50); // Added a small delay
+
+        return () => clearTimeout(updateCrop); // Cleanup the timer
 
     } else if (!videoSrc) {
         // Reset crop and selection when no video source
          setCropX(null); setCropY(null); setCropW(null); setCropH(null);
          setSelectionRect({ x: 0, y: 0, width: 0, height: 0, selectionNaturalWidth: 0, selectionNaturalHeight: 0 });
     }
-     // Depend on showVisualCropper, videoPreviewDimensions, selectionRect, videoSrc
-  }, [showVisualCropper, videoPreviewDimensions, selectionRect, videoSrc]);
+     // Depend on showVisualCropper, videoPreviewDimensions, crop states, selectionRect, videoSrc
+     // Dependencies adjusted to include crop states for proper initialization when showing cropper
+  }, [showVisualCropper, videoPreviewDimensions, cropX, cropY, cropW, cropH, selectionRect, videoSrc]);
 
 
   useEffect(() => {
+    // This useEffect handles the actual mouse move and mouse up events for visual cropping
     if (!interaction.type || !visualCropContainerRef.current) return;
-    const containerRect = visualCropContainerRef.current.getBoundingClientRect();
+
+    const containerElement = visualCropContainerRef.current;
+    const containerRect = containerElement.getBoundingClientRect();
+
     const handleDocumentMouseMove = (e) => {
       e.preventDefault();
       const mouseXInContainer = e.clientX - containerRect.left;
       const mouseYInContainer = e.clientY - containerRect.top;
       const { initialRect, startX, startY, type, handle } = interaction;
       if (!initialRect) return;
+
       const displayWidth = videoPreviewDimensions.width;
       const displayHeight = videoPreviewDimensions.height;
       const naturalWidth = initialRect.selectionNaturalWidth;
       const naturalHeight = initialRect.selectionNaturalHeight;
-      if (displayWidth === 0 || displayHeight === 0 || naturalWidth === 0 || naturalHeight === 0) return;
-      // Ensure scale factors are not zero to avoid division by zero
-      const scaleX = displayWidth > 0 ? naturalWidth / displayWidth : 0;
-      const scaleY = displayHeight > 0 ? naturalHeight / displayHeight : 0;
 
-      if (scaleX === 0 || scaleY === 0) {
-          console.warn("Scale factors are zero, cannot calculate crop accurately.");
-          return; // Prevent calculations if scales are zero
+      // Crucial check to prevent division by zero or incorrect scaling
+      if (displayWidth <= 0 || displayHeight <= 0 || naturalWidth <= 0 || naturalHeight <= 0) {
+          console.warn("Invalid dimensions for crop calculation during mouse move.");
+          return;
       }
+
+      const scaleX = naturalWidth / displayWidth;
+      const scaleY = naturalHeight / displayHeight;
 
       const deltaXOriginal = (mouseXInContainer - startX) * scaleX;
       const deltaYOriginal = (mouseYInContainer - startY) * scaleY;
+
       let newRect = { ...initialRect };
+      const minDim = 10;
+
       if (type === 'drag') {
-        newRect.x = Math.round(initialRect.x + deltaXOriginal);
-        newRect.y = Math.round(initialRect.y + deltaYOriginal);
+        newRect.x = initialRect.x + deltaXOriginal;
+        newRect.y = initialRect.y + deltaYOriginal;
       } else if (type === 'resize') {
         const { x: ix, y: iy, width: iw, height: ih } = initialRect;
-        const minDim = 10;
-        // Calculate potential new dimensions *before* clamping
         let potentialNewWidth = iw;
         let potentialNewHeight = ih;
         let potentialNewX = ix;
         let potentialNewY = iy;
 
         if (handle.includes('e')) {
-          potentialNewWidth = Math.round(iw + deltaXOriginal);
+          potentialNewWidth = iw + deltaXOriginal;
         }
         if (handle.includes('w')) {
-          potentialNewWidth = Math.round(iw - deltaXOriginal);
-          potentialNewX = Math.round(ix + (iw - potentialNewWidth));
+          potentialNewWidth = iw - deltaXOriginal;
+          potentialNewX = ix + (iw - potentialNewWidth);
         }
         if (handle.includes('s')) {
-          potentialNewHeight = Math.round(ih + deltaYOriginal);
+          potentialNewHeight = ih + deltaYOriginal;
         }
         if (handle.includes('n')) {
-          potentialNewHeight = Math.round(ih - deltaYOriginal);
-           potentialNewY = Math.round(iy + (ih - potentialNewHeight));
+          potentialNewHeight = ih - deltaYOriginal;
+           potentialNewY = iy + (ih - potentialNewHeight);
         }
 
-         // Apply minimum dimension clamp
+         // Apply minimum dimension clamp (using potential values)
         newRect.width = Math.max(minDim, potentialNewWidth);
         newRect.height = Math.max(minDim, potentialNewHeight);
         newRect.x = potentialNewX;
         newRect.y = potentialNewY;
 
       }
-       // After calculating the potential new rect, validate and clamp it
+       // After calculating the potential new rect, validate and clamp its position and size
       handleVisualCropChange(newRect);
     };
+
     const handleDocumentMouseUp = (e) => {
       e.preventDefault();
+      // Final update on mouse up to ensure state is in sync
+      if (interaction.type && interaction.initialRect) {
+         handleVisualCropChange({ ...selectionRect }); // Use the latest selectionRect
+      }
       setInteraction({ type: null, handle: null, startX: 0, startY: 0, initialRect: null });
     };
+
     document.addEventListener('mousemove', handleDocumentMouseMove);
     document.addEventListener('mouseup', handleDocumentMouseUp);
+
     return () => {
       document.removeEventListener('mousemove', handleDocumentMouseMove);
       document.removeEventListener('mouseup', handleDocumentMouseUp);
     };
-  }, [interaction, videoPreviewDimensions, handleVisualCropChange]); // Depend on interaction and dimensions
+    // Depend on interaction state (to attach/remove listeners), videoPreviewDimensions (for scaling),
+    // and handleVisualCropChange (as it's called within the handler)
+  }, [interaction, videoPreviewDimensions, handleVisualCropChange, selectionRect]); // Added selectionRect to deps
 
 
   const startInteraction = (e, type, handle = 'body') => {
     e.preventDefault();
     e.stopPropagation();
-    if (!visualCropContainerRef.current) return;
-     if (isProcessing) return; // Prevent interaction if processing
+    if (!visualCropContainerRef.current || isProcessing) return;
 
     const containerRect = visualCropContainerRef.current.getBoundingClientRect();
     const startX = e.clientX - containerRect.left;
     const startY = e.clientY - containerRect.top;
+
+     // Ensure we have valid dimensions before starting interaction
+    if (videoPreviewDimensions.width <= 0 || videoPreviewDimensions.height <= 0 || selectionRect.selectionNaturalWidth <= 0 || selectionRect.selectionNaturalHeight <= 0) {
+        console.warn("Cannot start crop interaction: Invalid video or selection dimensions.");
+        return;
+    }
+
     setInteraction({ type, handle, startX, startY, initialRect: { ...selectionRect } });
   };
 
+
   const fontStyleOptions = ["Arial", "Times New Roman", "Courier New", "Verdana", "Georgia", "Comic Sans MS"];
 
-    // Handler for preset selection
   const handlePresetChange = (e) => {
     const presetName = e.target.value;
     setSelectedPreset(presetName);
@@ -665,16 +708,13 @@ function Upload() {
       setIncludeAudio(preset.settings.includeAudio);
       setSpeedFactor(preset.settings.speedFactor);
       setReverse(preset.settings.reverse);
-      setOutputFormat(preset.settings.includeAudio ? 'mp4' : 'gif'); // Update outputFormat based on preset's audio
+      setOutputFormat(preset.settings.includeAudio ? 'mp4' : 'gif');
       // Note: Trim, Crop, and Text Overlay are not typically part of presets, so they are not reset here.
     }
   };
 
-  // Combined loading state for disabling controls
   const isProcessing = isUploading || isAnalyzing || isConverting;
 
-
-  // Loading and Progress Indicators Section
   let progressIndicator = null;
   if (isUploading) {
     progressIndicator = (
@@ -703,27 +743,21 @@ function Upload() {
     text: textOverlay,
     fontSize: fontSize,
     position: textPosition,
-    // Ensure color and bgColor are passed correctly, even if empty
-    // The VideoPlayer component should handle default values if these are null/undefined
-    // For example, if textColor is an empty string, VideoPlayer might default to 'white'.
-    // If textBgColor is empty, VideoPlayer might default to 'transparent'.
-    // This depends on VideoPlayer's internal logic.
     color: textColor,
     bgColor: textBgColor,
     fontStyle: fontStyle,
   } : null;
 
   return (
-    // Apply maxWidth to the main container for overall width control
     <Box
       bg={mainBg}
       borderRadius="xl"
       boxShadow="lg"
       p={{ base: 4, md: 8 }}
       color={mainText}
-      maxW="48rem" // Adjust this value to control the overall width (e.g., "60rem", "900px")
-      mx="auto" // Center the container on the page
-      w="full" // Ensure it takes full width up to maxW
+      maxW="48rem"
+      mx="auto"
+      w="full"
     >
       <Heading as="h2" size="xl" mb={8} textAlign="center" fontWeight="bold">
         Video to GIF & MP4 Converter
@@ -740,7 +774,6 @@ function Upload() {
           <CloseButton onClick={() => setMessage({ text: '', type: 'info' })} position="absolute" right="8px" top="8px" />
         </Alert>
       )}
-      {/* Display Progress Indicators */}
       {progressIndicator}
 
       <FileUploadZone
@@ -750,19 +783,19 @@ function Upload() {
         onFileChange={handleFileChange}
         onVideoUrlInputChange={(e) => {
           setVideoUrlInput(e.target.value);
+          // Clear file input and related states when URL is entered
           if (e.target.value) {
             setFile(null);
             if (fileInputRef.current) fileInputRef.current.value = '';
-            setUploadedFilename('');
-            setVideoSrc(null); // Clear local preview when entering URL
-             setVideoDuration(0); // Reset duration
-             setTrim({ start: 0, end: 0 }); // Reset trim
-             setScenePoints([]); // Reset scenes
-             setVideoPreviewDimensions({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 }); // Reset dimensions
-             setCropX(null); setCropY(null); setCropW(null); setCropH(null); // Reset crop
-             setShowVisualCropper(false); // Hide cropper
-             setOutputUrl(null); // Clear output
-             // Keep text overlay, effects, output options as they might be desired for the URL conversion
+             setUploadedFilename('');
+             setVideoSrc(null);
+             setVideoDuration(0);
+             setTrim({ start: 0, end: 0 });
+             setScenePoints([]);
+             setVideoPreviewDimensions({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 });
+             setCropX(null); setCropY(null); setCropW(null); setCropH(null);
+             setShowVisualCropper(false);
+             setOutputUrl(null);
           }
         }}
         onDragOver={handleDragOver}
@@ -773,21 +806,21 @@ function Upload() {
       />
       <VStack spacing={6} align="stretch" mb={8}>
         <Button
-          onClick={file ? () => handleAnalyzeVideo() : handleProcessUrl} // Decide action based on input
-          isDisabled={(!file && !videoUrlInput) || isProcessing || (!file && videoUrlInput.trim() === '')} // Disable if no input or processing
+          onClick={file ? () => handleAnalyzeVideo() : handleProcessUrl}
+          isDisabled={(!file && !videoUrlInput) || isProcessing || (!file && videoUrlInput.trim() === '')}
           colorScheme="green"
           size="lg"
           w="full"
-          isLoading={isProcessing} // Show spinner for any processing
+          isLoading={isProcessing && !outputUrl} // Show spinner during analysis or initial processing
           spinner={<Spinner size="md" />}
-          leftIcon={isProcessing ? undefined : <Icon as={FiUploadCloud} />}
+          leftIcon={isProcessing && !outputUrl ? undefined : <Icon as={FiUploadCloud} />}
         >
-          {isProcessing ? 'Processing...' : 'Process Video'}
+          {isProcessing && !outputUrl ? 'Processing...' : 'Process Video'}
         </Button>
       </VStack>
 
-       {/* Video Preview Area - show if videoSrc is available and no outputUrl is generated, OR if visual cropper is active */}
-      {(videoSrc && !outputUrl && !showVisualCropper) && (
+       {/* Video Preview Area */}
+      {(videoSrc && !outputUrl && !showVisualCropper) && ( // Show standard player if videoSrc is available, no output, and cropper is hidden
         <VideoPlayer
           key={videoPlayerKey}
           src={videoSrc}
@@ -796,8 +829,9 @@ function Upload() {
         />
       )}
 
-      {showVisualCropper && videoSrc && videoPreviewDimensions.naturalWidth > 0 && !isProcessing && ( // Disable visual cropper when processing
-        <Box my={4} p={4} borderWidth="1px" borderRadius="lg" borderColor="blue.500" maxW="full" overflowX="auto"> {/* Added maxW="full" and overflowX="auto" */}
+      {/* Visual Cropper Area */}
+      {showVisualCropper && videoSrc && videoPreviewDimensions.naturalWidth > 0 && !isProcessing && (
+        <Box my={4} p={4} borderWidth="1px" borderRadius="lg" borderColor="blue.500" maxW="full" overflowX="auto">
             <Heading size="md" mb={2}>Visual Crop</Heading>
             {videoPreviewDimensions.naturalWidth > 0 && (
                 <Text mb={2}>Video Dimensions: {videoPreviewDimensions.naturalWidth}x{videoPreviewDimensions.naturalHeight} (Original)</Text>
@@ -805,7 +839,7 @@ function Upload() {
              {videoPreviewDimensions.width > 0 && videoPreviewDimensions.height > 0 && (
                 <Text mb={4}>Displayed Preview Dimensions: {videoPreviewDimensions.width}x{videoPreviewDimensions.height}</Text>
              )}
-             {(videoPreviewDimensions.width > 0 && videoPreviewDimensions.height > 0 && videoSrc) ? ( // Only show the cropper box if dimensions are valid
+             {(videoPreviewDimensions.width > 0 && videoPreviewDimensions.height > 0 && videoSrc) ? (
                 <Box
                     position="relative"
                     width={`${videoPreviewDimensions.width}px`}
@@ -814,7 +848,7 @@ function Upload() {
                     border="2px dashed gray"
                     ref={visualCropContainerRef}
                     overflow="hidden"
-                    maxW="full" // Added maxW="full" here as well
+                    maxW="full"
                 >
                     <video
                         src={videoSrc}
@@ -833,7 +867,7 @@ function Upload() {
                             width: videoPreviewDimensions.width > 0 && selectionRect.selectionNaturalWidth > 0 ? `${(selectionRect.width / selectionRect.selectionNaturalWidth) * videoPreviewDimensions.width}px` : '0px',
                             height: videoPreviewDimensions.height > 0 && selectionRect.selectionNaturalHeight > 0 ? `${(selectionRect.height / selectionRect.selectionNaturalHeight) * videoPreviewDimensions.height}px` : '0px',
                             cursor: 'move',
-                            display: (selectionRect.width <=0 || selectionRect.height <=0) ? 'none' : 'block',
+                            display: (selectionRect.width <=0 || selectionRect.height <=0 || selectionRect.selectionNaturalWidth <= 0 || selectionRect.selectionNaturalHeight <= 0) ? 'none' : 'block', // Hide if invalid dimensions
                         }}
                         onMouseDown={(e) => startInteraction(e, 'drag')}
                     >
@@ -897,11 +931,11 @@ function Upload() {
           showVisualCropper={showVisualCropper} setShowVisualCropper={setShowVisualCropper}
           videoSrc={videoSrc}
           videoPreviewDimensions={videoPreviewDimensions}
-          isProcessing={isProcessing} // Pass combined processing state
+          isProcessing={isProcessing}
           cropX={cropX} setCropX={setCropX}
           cropY={cropY} setCropY={setCropY}
           cropW={cropW} setCropW={setCropW}
-          cropH={cropH} setCropH={cropH}
+          cropH={cropH} setCropH={setCropH}
           textOverlay={textOverlay} setTextOverlay={setTextOverlay}
           fontSize={fontSize} setFontSize={setFontSize}
           fontStyle={fontStyle} setFontStyle={setFontStyle} fontStyleOptions={fontStyleOptions}
@@ -916,7 +950,7 @@ function Upload() {
         />
       )}
 
-      {/* Convert Button - Placed after settings if settings are visible */}
+      {/* Convert Button */}
       {uploadedFilename && videoDuration > 0 && (
         <>
           <Divider my={10} />
@@ -928,7 +962,7 @@ function Upload() {
             isLoading={isConverting}
             spinner={<Spinner size="md" />}
             leftIcon={isConverting ? undefined : <Icon as={FiUploadCloud} transform="rotate(90deg)" />}
-            isDisabled={isProcessing} // Disable convert button if any processing is happening
+            isDisabled={isProcessing || !uploadedFilename || videoDuration <= 0} // Disable if no video or duration
           >
             {isConverting ? 'Converting...' : `Convert to ${outputFormat.toUpperCase()}`}
           </Button>
@@ -938,7 +972,7 @@ function Upload() {
       <OutputDisplay
         outputUrl={outputUrl}
         outputFormat={outputFormat}
-        liveTextOverlay={null} // No live overlay for the final output
+        liveTextOverlay={null}
       />
     </Box>
   );
