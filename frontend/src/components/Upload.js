@@ -459,40 +459,9 @@ function Upload() {
     }
   };
 
-  const handleTrimChange = ({ start, end }) => {
+  const handleTrimChange = useCallback(({ start, end }) => {
     setTrim({ start, end });
-  };
-
-  const handleVideoMetadata = useCallback(({ width, height, naturalWidth, naturalHeight }) => {
-    setVideoPreviewDimensions({ width: width || 0, height: height || 0, naturalWidth: naturalWidth || 0, naturalHeight: naturalHeight || 0 });
-
-    // Initialize or reset crop selection based on new video dimensions
-    if (naturalWidth > 0 && naturalHeight > 0) {
-        // Initialize to full video size if no crop was previously set
-        const initialX = cropX !== null ? cropX : 0;
-        const initialY = cropY !== null ? cropY : 0;
-        const initialWidth = cropW !== null ? cropW : naturalWidth;
-        const initialHeight = cropH !== null ? cropH : naturalHeight;
-
-         // Ensure initial selection is within new bounds
-         const validatedInitialRect = {
-             x: Math.max(0, Math.min(initialX, naturalWidth - (initialWidth > 0 ? initialWidth : naturalWidth))),
-             y: Math.max(0, Math.min(initialY, naturalHeight - (initialHeight > 0 ? initialHeight : naturalHeight))),
-             width: Math.min(initialWidth > 0 ? initialWidth : naturalWidth, naturalWidth - Math.max(0, initialX)),
-             height: Math.min(initialHeight > 0 ? initialHeight : naturalHeight, naturalHeight - Math.max(0, initialY)),
-             selectionNaturalWidth: naturalWidth,
-             selectionNaturalHeight: naturalHeight,
-         };
-        handleVisualCropChange(validatedInitialRect);
-    } else {
-         // Reset crop and selection if dimensions are invalid
-        handleVisualCropChange({
-            x: 0, y: 0, width: 0, height: 0,
-            selectionNaturalWidth: 0, selectionNaturalHeight: 0
-        });
-         setCropX(null); setCropY(null); setCropW(null); setCropH(null); // Explicitly set crop to null
-    }
-  }, [cropX, cropY, cropW, cropH, handleVisualCropChange]); // Added crop dependencies
+  }, [setTrim]); // setTrim is stable, so this callback is stable
 
 
   const handleVisualCropChange = useCallback((newRect) => {
@@ -531,6 +500,37 @@ function Upload() {
 
   }, []); // Dependency array is empty as state setters and local state (selectionRect) are stable
 
+  const handleVideoMetadata = useCallback(({ width, height, naturalWidth, naturalHeight }) => {
+    setVideoPreviewDimensions({ width: width || 0, height: height || 0, naturalWidth: naturalWidth || 0, naturalHeight: naturalHeight || 0 });
+
+    // Initialize or reset crop selection based on new video dimensions
+    if (naturalWidth > 0 && naturalHeight > 0) {
+        // Initialize to full video size if no crop was previously set
+        const initialX = cropX !== null ? cropX : 0;
+        const initialY = cropY !== null ? cropY : 0;
+        const initialWidth = cropW !== null ? cropW : naturalWidth;
+        const initialHeight = cropH !== null ? cropH : naturalHeight;
+
+         // Ensure initial selection is within new bounds
+         const validatedInitialRect = {
+             x: Math.max(0, Math.min(initialX, naturalWidth - (initialWidth > 0 ? initialWidth : naturalWidth))),
+             y: Math.max(0, Math.min(initialY, naturalHeight - (initialHeight > 0 ? initialHeight : naturalHeight))),
+             width: Math.min(initialWidth > 0 ? initialWidth : naturalWidth, naturalWidth - Math.max(0, initialX)),
+             height: Math.min(initialHeight > 0 ? initialHeight : naturalHeight, naturalHeight - Math.max(0, initialY)),
+             selectionNaturalWidth: naturalWidth,
+             selectionNaturalHeight: naturalHeight,
+         };
+        handleVisualCropChange(validatedInitialRect);
+    } else {
+         // Reset crop and selection if dimensions are invalid
+        handleVisualCropChange({
+            x: 0, y: 0, width: 0, height: 0,
+            selectionNaturalWidth: 0, selectionNaturalHeight: 0
+        });
+         setCropX(null); setCropY(null); setCropW(null); setCropH(null); // Explicitly set crop to null
+    }
+  }, [cropX, cropY, cropW, cropH, handleVisualCropChange]); // Added crop dependencies
+
 
   useEffect(() => {
     // This useEffect syncs the numerical crop inputs with the visual selectionRect
@@ -562,24 +562,46 @@ function Upload() {
          validatedInitialRect.height = Math.max(10, validatedInitialRect.height); // Ensure min dimension
 
 
-        setSelectionRect(validatedInitialRect);
-
+        // Only update selectionRect if its content has actually changed
+        if (
+            validatedInitialRect.x !== selectionRect.x ||
+            validatedInitialRect.y !== selectionRect.y ||
+            validatedInitialRect.width !== selectionRect.width ||
+            validatedInitialRect.height !== selectionRect.height ||
+            validatedInitialRect.selectionNaturalWidth !== selectionRect.selectionNaturalWidth ||
+            validatedInitialRect.selectionNaturalHeight !== selectionRect.selectionNaturalHeight
+        ) {
+            setSelectionRect(validatedInitialRect);
+        }
     } else if (!showVisualCropper && videoPreviewDimensions.naturalWidth > 0 && videoPreviewDimensions.naturalHeight > 0) {
         // When hiding the visual cropper, update cropX,Y,W,H based on the final selectionRect
         // Add a small delay to ensure the last mouseup event has processed its state update
         const updateCrop = setTimeout(() => {
-             setCropX(selectionRect.x === 0 && selectionRect.width === selectionRect.selectionNaturalWidth ? null : selectionRect.x);
-             setCropY(selectionRect.y === 0 && selectionRect.height === selectionRect.selectionNaturalHeight ? null : selectionRect.y);
-             setCropW(selectionRect.width === selectionRect.selectionNaturalWidth && selectionRect.x === 0 ? null : selectionRect.width);
-             setCropH(selectionRect.height === selectionRect.selectionNaturalHeight && selectionRect.y === 0 ? null : selectionRect.height);
+            const newCropX = selectionRect.x === 0 && selectionRect.width === selectionRect.selectionNaturalWidth ? null : selectionRect.x;
+            const newCropY = selectionRect.y === 0 && selectionRect.height === selectionRect.selectionNaturalHeight ? null : selectionRect.y;
+            const newCropW = selectionRect.width === selectionRect.selectionNaturalWidth && selectionRect.x === 0 ? null : selectionRect.width;
+            const newCropH = selectionRect.height === selectionRect.selectionNaturalHeight && selectionRect.y === 0 ? null : selectionRect.height;
+
+            if (newCropX !== cropX || newCropY !== cropY || newCropW !== cropW || newCropH !== cropH) {
+                setCropX(newCropX);
+                setCropY(newCropY);
+                setCropW(newCropW);
+                setCropH(newCropH);
+            }
         }, 50); // Added a small delay
 
         return () => clearTimeout(updateCrop); // Cleanup the timer
 
     } else if (!videoSrc) {
-        // Reset crop and selection when no video source
-         setCropX(null); setCropY(null); setCropW(null); setCropH(null);
-         setSelectionRect({ x: 0, y: 0, width: 0, height: 0, selectionNaturalWidth: 0, selectionNaturalHeight: 0 });
+        // Reset crop and selection when no video source, only if they are not already reset
+        if (cropX !== null || cropY !== null || cropW !== null || cropH !== null) {
+            setCropX(null); setCropY(null); setCropW(null); setCropH(null);
+        }
+        if (selectionRect.x !== 0 || selectionRect.y !== 0 ||
+            selectionRect.width !== 0 || selectionRect.height !== 0 ||
+            selectionRect.selectionNaturalWidth !== 0 || selectionRect.selectionNaturalHeight !== 0) {
+            setSelectionRect({ x: 0, y: 0, width: 0, height: 0, selectionNaturalWidth: 0, selectionNaturalHeight: 0 });
+        }
     }
      // Depend on showVisualCropper, videoPreviewDimensions, crop states, selectionRect, videoSrc
      // Dependencies adjusted to include crop states for proper initialization when showing cropper

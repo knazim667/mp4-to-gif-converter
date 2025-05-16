@@ -36,7 +36,7 @@ function OutputDisplay({ outputUrl, outputFormat, liveTextOverlay }) {
               liveTextOverlay={liveTextOverlay}
             />
           ) : (
-            <Image src={outputUrl || ''} alt={`Converted ${outputFormat ? outputFormat.toUpperCase() : 'Output'}`} maxW="full" borderRadius="md" /> {/* Pass empty string if null */}
+            <Image src={outputUrl || ''} alt={`Converted ${outputFormat ? outputFormat.toUpperCase() : 'Output'}`} maxW="full" borderRadius="md" />
           )}
         </Center>
       </Box>

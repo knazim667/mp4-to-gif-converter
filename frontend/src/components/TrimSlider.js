@@ -12,20 +12,17 @@ function TrimSlider({ duration, scenes = [], onTrimChange }) {
 
   useEffect(() => {
     // When duration changes, update the end time, ensuring it doesn't go beyond the new duration
-    const newEnd = Math.min(end, safeDuration);
-    setEnd(newEnd);
-    // Also ensure start is not beyond the new duration
-    const newStart = Math.min(start, newEnd);
-    setStart(newStart);
+    // Reset start to 0 and end to the new safeDuration.
+    const newStartValue = 0;
+    const newEndValue = safeDuration;
 
-    // Call onTrimChange with the initial/adjusted values
-    if (typeof onTrimChange === 'function') { // Check if onTrimChange is a function
-        onTrimChange({ start: newStart, end: newEnd });
-    } else {
-         console.error("TrimSlider: onTrimChange prop is not a function.");
+    setStart(newStartValue);
+    setEnd(newEndValue);
+
+    if (typeof onTrimChange === 'function') {
+        onTrimChange({ start: newStartValue, end: newEndValue });
     }
-
-  }, [duration, safeDuration, onTrimChange]); // Add onTrimChange and safeDuration to dependencies
+  }, [safeDuration, onTrimChange]); // Depend on safeDuration and the stable onTrimChange callback.
 
   const handleStartChange = (value) => {
     const snappedValue = value; // Simplified snapping for robustness, can re-add scene snapping if needed
