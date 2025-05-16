@@ -539,12 +539,31 @@ function Upload() {
 
     // Initialize or update selectionRect when showing the cropper or dimensions change
     if (showVisualCropper && videoPreviewDimensions.naturalWidth > 0 && videoPreviewDimensions.naturalHeight > 0) {
+        let calculatedInitialX, calculatedInitialY, calculatedInitialWidth, calculatedInitialHeight;
+
+        // Determine if the current numerical crop settings represent a full frame or no crop
+        const isXUnsetOrZero = cropX === null || cropX === 0;
+        const isYUnsetOrZero = cropY === null || cropY === 0;
+        const isWUnsetOrFull = cropW === null || cropW === videoPreviewDimensions.naturalWidth;
+        const isHUnsetOrFull = cropH === null || cropH === videoPreviewDimensions.naturalHeight;
+        const isEffectivelyUncropped = isXUnsetOrZero && isYUnsetOrZero && isWUnsetOrFull && isHUnsetOrFull;
+
+        if (isEffectivelyUncropped) {
+            // Default to a smaller, centered rectangle (e.g., 75% of video dimensions)
+            calculatedInitialWidth = videoPreviewDimensions.naturalWidth * 0.75;
+            calculatedInitialHeight = videoPreviewDimensions.naturalHeight * 0.75;
+            calculatedInitialX = (videoPreviewDimensions.naturalWidth - calculatedInitialWidth) / 2;
+            calculatedInitialY = (videoPreviewDimensions.naturalHeight - calculatedInitialHeight) / 2;
+        } else {
+            // User has specific numerical crop settings, use them
+            calculatedInitialX = cropX !== null ? cropX : 0;
+            calculatedInitialY = cropY !== null ? cropY : 0;
+            calculatedInitialWidth = cropW !== null ? cropW : videoPreviewDimensions.naturalWidth;
+            calculatedInitialHeight = cropH !== null ? cropH : videoPreviewDimensions.naturalHeight;
+        }
+
          const initialRect = {
-            // Use current crop state if set, otherwise default to full video dimensions
-            x: cropX !== null ? cropX : 0,
-            y: cropY !== null ? cropY : 0,
-            width: cropW !== null ? cropW : videoPreviewDimensions.naturalWidth,
-            height: cropH !== null ? cropH : videoPreviewDimensions.naturalHeight,
+            x: calculatedInitialX, y: calculatedInitialY, width: calculatedInitialWidth, height: calculatedInitialHeight,
             selectionNaturalWidth: videoPreviewDimensions.naturalWidth,
             selectionNaturalHeight: videoPreviewDimensions.naturalHeight,
          };
