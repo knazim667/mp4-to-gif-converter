@@ -1,0 +1,11 @@
+# robots.txt for EasyGIFMaker.com
+
+User-agent: *
+Allow: /
+
+# Disallow specific paths if you have any (examples):
+# Disallow: /admin/
+# Disallow: /temp-files/
+# Disallow: /search?query=* # If your search results pages are not valuable for SEO
+
+Sitemap: https://www.easygifmaker.com/sitemap.xml

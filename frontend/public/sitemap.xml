@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.easygifmaker.com/</loc>
+    <lastmod>2023-10-28</lastmod> <!-- Update this when homepage content changes significantly -->
+    <changefreq>weekly</changefreq> <!-- How frequently the page is likely to change -->
+    <priority>1.0</priority> <!-- Priority of this URL relative to other URLs on your site -->
+  </url>
+
+  <!-- Example: Adding a guide page -->
+  <url>
+    <loc>https://www.easygifmaker.com/guides/how-to-convert-mp4-to-gif</loc>
+    <lastmod>2023-10-28</lastmod> <!-- Date this guide was last updated -->
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Example: Adding another guide or feature page -->
+  <url>
+    <loc>https://www.easygifmaker.com/guides/adding-text-to-gifs</loc>
+    <lastmod>2023-10-27</lastmod> <!-- Date this guide was last updated -->
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Add other important URLs like /about, /contact, /privacy-policy etc. as they are created -->
+</urlset>
