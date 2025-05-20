@@ -539,31 +539,41 @@ function Upload() {
 
     // Initialize or update selectionRect when showing the cropper or dimensions change
     if (showVisualCropper && videoPreviewDimensions.naturalWidth > 0 && videoPreviewDimensions.naturalHeight > 0) {
-        let calculatedInitialX, calculatedInitialY, calculatedInitialWidth, calculatedInitialHeight;
+        let initialX, initialY, initialWidth, initialHeight;
+        const displayWidth = videoPreviewDimensions.width; // Use current display width of the video player
+        const displayHeight = videoPreviewDimensions.height; // Use current display height
 
         // Determine if the current numerical crop settings represent a full frame or no crop
         const isXUnsetOrZero = cropX === null || cropX === 0;
         const isYUnsetOrZero = cropY === null || cropY === 0;
-        const isWUnsetOrFull = cropW === null || cropW === videoPreviewDimensions.naturalWidth;
+        // Compare with natural dimensions for "full" check, as cropW/H relate to natural dimensions
+        const isWUnsetOrFull = cropW === null || cropW === videoPreviewDimensions.naturalWidth; 
         const isHUnsetOrFull = cropH === null || cropH === videoPreviewDimensions.naturalHeight;
         const isEffectivelyUncropped = isXUnsetOrZero && isYUnsetOrZero && isWUnsetOrFull && isHUnsetOrFull;
 
-        if (isEffectivelyUncropped) {
-            // Default to a smaller, centered rectangle (e.g., 75% of video dimensions)
-            calculatedInitialWidth = videoPreviewDimensions.naturalWidth * 0.75;
-            calculatedInitialHeight = videoPreviewDimensions.naturalHeight * 0.75;
-            calculatedInitialX = (videoPreviewDimensions.naturalWidth - calculatedInitialWidth) / 2;
-            calculatedInitialY = (videoPreviewDimensions.naturalHeight - calculatedInitialHeight) / 2;
+        if (isEffectivelyUncropped && displayWidth > 0 && displayHeight > 0) {
+            // Default to a smaller, centered rectangle (e.g., 75% of the *displayed* video dimensions)
+            // The selectionRect's x, y, width, height should be relative to the natural dimensions
+            // but calculated based on the display dimensions for initial appearance.
+            const scaleFactorX = videoPreviewDimensions.naturalWidth / displayWidth;
+            const scaleFactorY = videoPreviewDimensions.naturalHeight / displayHeight;
+
+            initialWidth = (displayWidth * 0.75) * scaleFactorX;
+            initialHeight = (displayHeight * 0.75) * scaleFactorY;
+            // Center it: (total - 75%_of_total) / 2 = (25%_of_total) / 2
+            initialX = ((displayWidth * (1 - 0.75)) / 2) * scaleFactorX; 
+            initialY = ((displayHeight * (1 - 0.75)) / 2) * scaleFactorY;
+
         } else {
             // User has specific numerical crop settings, use them
-            calculatedInitialX = cropX !== null ? cropX : 0;
-            calculatedInitialY = cropY !== null ? cropY : 0;
-            calculatedInitialWidth = cropW !== null ? cropW : videoPreviewDimensions.naturalWidth;
-            calculatedInitialHeight = cropH !== null ? cropH : videoPreviewDimensions.naturalHeight;
+            initialX = cropX !== null ? cropX : 0;
+            initialY = cropY !== null ? cropY : 0;
+            initialWidth = cropW !== null ? cropW : videoPreviewDimensions.naturalWidth;
+            initialHeight = cropH !== null ? cropH : videoPreviewDimensions.naturalHeight;
         }
 
          const initialRect = {
-            x: calculatedInitialX, y: calculatedInitialY, width: calculatedInitialWidth, height: calculatedInitialHeight,
+            x: initialX, y: initialY, width: initialWidth, height: initialHeight,
             selectionNaturalWidth: videoPreviewDimensions.naturalWidth,
             selectionNaturalHeight: videoPreviewDimensions.naturalHeight,
          };

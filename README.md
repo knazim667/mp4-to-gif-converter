@@ -231,7 +231,28 @@ Follow these steps to get the application up and running:
 
 ## 📂 Project Structure
 
-mp4-to-gif-converter/ ├── backend/ │ ├── app.py # Main Flask application file │ ├── utils/ │ │ ├── video_processing.py # Core video conversion logic │ │ └── ai_trimming.py # Scene detection logic │ ├── requirements.txt # Backend Python dependencies │ ├── venv/ # Python virtual environment │ └── .env # Backend environment variables ├── frontend/ │ ├── public/ │ │ ├── index.html # Main HTML file │ │ ├── robots.txt # Instructions for web crawlers │ │ └── sitemap.xml # XML sitemap for search engines │ ├── src/ │ │ ├── components/ # Reusable UI components (Upload, VideoPlayer, Navbar, Footer, etc.) │ │ ├── pages/ # Page-level components (HomePage, AboutPage, ContactPage, etc.) │ │ ├── App.js # Root React component with routing setup │ │ └── index.js # React application entry point │ ├── package.json # Frontend dependencies and scripts │ └── .env # Frontend environment variables └── README.md # This file
+mp4-to-gif-converter/
+├── backend/
+│   ├── app.py              # Main Flask application file, defines API routes
+│   ├── utils/
+│   │   ├── video_processing.py # Contains the core video conversion logic using MoviePy
+│   │   └── ai_trimming.py      # Logic for automatic scene detection to suggest trim points
+│   ├── requirements.txt    # Lists all Python dependencies for the backend
+│   ├── venv/               # Python virtual environment directory (if created)
+│   └── .env                # Backend environment variables (should be gitignored)
+├── frontend/
+│   ├── public/
+│   │   └── index.html      # The main HTML file for the React application
+│   ├── src/source
+│   │   ├── components/
+│   │   │   ├── Upload.js       # Component for handling video uploads and conversion settings
+│   │   │   ├── VideoPlayer.js  # Component integrating the Video.js player for previews
+│   │   │   └── TrimSlider.js   # UI component for selecting start and end trim points
+│   │   ├── App.js            # The root component of the React application
+│   │   └── index.js          # The entry point for the React application
+│   ├── package.json        # Defines frontend dependencies and scripts
+│   └── .env                # Frontend environment variables (should be gitignored)
+└── README.md               # This file, providing project information
 
 
 ## 🌐 API Endpoints (Backend)
