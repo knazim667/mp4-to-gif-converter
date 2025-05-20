@@ -29,6 +29,7 @@ function Footer() {
         </Text>
       </Flex>
       <Stack direction={{ base: 'column', md: 'row' }} spacing={4} justify="center" align="center" mt={4}>
+        <ChakraLink as={RouterLink} to="/">EasyGIFMaker Tool</ChakraLink>
         <ChakraLink as={RouterLink} to="/about">About Us</ChakraLink>
         <ChakraLink as={RouterLink} to="/contact">Contact</ChakraLink>
         <ChakraLink as={RouterLink} to="/help/faq">Help/FAQ</ChakraLink>

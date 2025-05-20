@@ -2,8 +2,8 @@ import React from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { Box } from '@chakra-ui/react';
 import AppRoutes from './components/AppRoutes'; // Assuming AppRoutes is in components
-import Footer from './components/Footer';
-// import Navbar from './components/Navbar'; // Optional: if you add a Navbar
+import Footer from './components/Footer.js';
+import Navbar from './components/Navbar'; // Optional: if you add a Navbar
 
 function App() {
   return (
@@ -11,9 +11,8 @@ function App() {
     <Router>
       {/* Main application container using Chakra UI Box */}
       {/* Flexbox ensures footer stays at the bottom */}
-      <Box display="flex" flexDirection="column" minH="100vh">
-        {/* Optional: Navbar would go here */}
-        {/* <Navbar /> */}
+      <Box display="flex" flexDirection="column" minH="100vh" >
+        <Navbar /> {/* Navbar added here */}
 
         {/* Main content area that grows to fill available space */}
         {/* AppRoutes will render the component based on the current URL */}

@@ -1,5 +1,5 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, request, jsonify, make_response
+from flask_cors import CORS # Keep this if you use it globally
 import boto3
 import os
 import subprocess
@@ -7,6 +7,7 @@ import requests
 import shutil
 import yt_dlp  # For downloading from YouTube and other sites
 import uuid  # For generating unique filenames
+from flask_mail import Mail, Message # Import Mail and Message
 
 from dotenv import load_dotenv
 import logging
@@ -15,11 +16,14 @@ from utils.ai_trimming import detect_scenes
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app, resources={r"/*": {
-    "origins": ["http://localhost:3000", "http://192.168.12.238:3000"], # Add other origins as needed
+# Example global CORS setup. Adjust origins as needed.
+CORS(app, resources={r"/api/*": { # Be more specific with your API routes
+    "origins": ["http://localhost:3000", "http://192.168.12.238:3000", "http://easygifmaker.com", "https://easygifmaker.com"],
     "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
     "allow_headers": ["Content-Type", "Authorization"]
 }})
+# If you have a very simple setup and want to allow all origins for all routes (less secure for production):
+# CORS(app)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +31,17 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
+
+# Configure Flask-Mail
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
+app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'False').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
+
+mail = Mail(app) # Initialize Flask-Mail
 
 # Initialize AWS S3 client
 try:
@@ -113,10 +128,10 @@ def download_file_from_url(video_url, save_path_without_extension):
         return None
 
 # Upload endpoint
-@app.route('/upload', methods=['POST', 'OPTIONS'])
+@app.route('/api/upload', methods=['POST']) # Assuming OPTIONS is handled by global CORS
 def upload_file_route():
-    if request.method == 'OPTIONS':
-        return jsonify({'status': 'ok'}), 200
+    # If not using global CORS for OPTIONS, you'd handle it here:
+    # if request.method == 'OPTIONS': return _build_cors_preflight_response()
     temp_local_path = None # Initialize to ensure it's defined for finally block
     try:
         if 'video' not in request.files:
@@ -155,10 +170,9 @@ def upload_file_route():
 
 
 # Endpoint to process video from URL
-@app.route('/process-url', methods=['POST', 'OPTIONS'])
+@app.route('/api/process-url', methods=['POST'])
 def process_url_route():
-    if request.method == 'OPTIONS':
-        return jsonify({'status': 'ok'}), 200
+    # if request.method == 'OPTIONS': return _build_cors_preflight_response()
     downloaded_temp_file_path = None
     try:
         data = request.get_json()
@@ -194,10 +208,9 @@ def process_url_route():
             logger.info(f"Removed temporary file from URL processing: {downloaded_temp_file_path}")
 
 # Analyze endpoint for AI trimming and getting video info
-@app.route('/analyze', methods=['POST', 'OPTIONS'])
+@app.route('/api/analyze', methods=['POST'])
 def analyze_file_route():
-    if request.method == 'OPTIONS':
-        return jsonify({'status': 'ok'}), 200
+    # if request.method == 'OPTIONS': return _build_cors_preflight_response()
     temp_input_filename = None
     try:
         data = request.get_json()
@@ -238,11 +251,10 @@ def analyze_file_route():
             logger.info(f"Removed temporary analysis file: {temp_input_filename}")
 
 # Convert endpoint
-@app.route('/convert', methods=['POST', 'OPTIONS'])
+@app.route('/api/convert', methods=['POST'])
 def convert_file_route():
-    if request.method == 'OPTIONS':
-        return jsonify({'status': 'ok'}), 200
-    
+    # if request.method == 'OPTIONS': return _build_cors_preflight_response()
+
     temp_input_filename = None
     local_temp_output_path = None
     try:
@@ -326,6 +338,61 @@ def convert_file_route():
         if local_temp_output_path and os.path.exists(local_temp_output_path):
             os.remove(local_temp_output_path)
             logger.info(f"Removed temporary output file: {local_temp_output_path}")
+
+# Contact Form Endpoint
+@app.route('/api/contact', methods=['POST']) # Assuming OPTIONS is handled by global CORS
+def handle_contact_form():
+    # If not using global CORS for OPTIONS, you'd handle it here:
+    # if request.method == 'OPTIONS': return _build_cors_preflight_response()
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        email = data.get('email')
+        message_body = data.get('message')
+
+        if not all([name, email, message_body]):
+            return jsonify({"message": "Missing required fields (name, email, message)"}), 400
+
+        # Basic email validation
+        if "@" not in email or "." not in email:
+                return jsonify({"message": "Invalid email format"}), 400
+
+        recipient_email = os.getenv('CONTACT_FORM_RECIPIENT')
+        if not recipient_email:
+            logger.error("CONTACT_FORM_RECIPIENT environment variable not set.")
+            return jsonify({"message": "Server configuration error for contact form."}), 500
+
+        subject = f"New Contact Message from {name} via EasyGIFMaker.com"
+        
+        # Using os.linesep for platform-independent newline handling, then replacing for HTML
+        html_message_body = message_body.replace(os.linesep, '<br>')
+        
+        msg_html = f"""
+        <p>You have received a new message from your EasyGIFMaker.com contact form:</p>
+        <p><strong>Name:</strong> {name}</p>
+        <p><strong>Email:</strong> {email}</p>
+        <p><strong>Message:</strong></p>
+        <p>{html_message_body}</p>
+        """
+
+        msg = Message(subject, recipients=[recipient_email])
+        msg.html = msg_html
+
+        mail.send(msg)
+        logger.info(f"Contact form message sent successfully from {email} to {recipient_email}")
+        return jsonify({"message": "Message sent successfully!"}), 200
+
+    except Exception as e:
+        logger.error(f"Error handling contact form: {e}", exc_info=True)
+        return jsonify({"message": "An error occurred while sending the message."}), 500
+
+# Helper for CORS preflight (only needed if not using global Flask-CORS for OPTIONS)
+# def _build_cors_preflight_response():
+#     response = make_response()
+#     response.headers.add("Access-Control-Allow-Origin", "*") # Or your specific frontend URL(s)
+#     response.headers.add('Access-Control-Allow-Headers', "Content-Type,Authorization") # Specify allowed headers
+#     response.headers.add('Access-Control-Allow-Methods', "GET,POST,OPTIONS,PUT,DELETE") # Specify allowed methods
+#     return response
 
 # Home endpoint for testing
 @app.route('/')

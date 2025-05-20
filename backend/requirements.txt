@@ -13,4 +13,4 @@
      numpy==1.26.4
      yt-dlp==2025.4.30
      requests==2.32.3
-     
+     Flask-Mail==0.10.0
