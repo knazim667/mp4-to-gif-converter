@@ -11,14 +11,17 @@ This project is a web application designed to empower users to effortlessly conv
 * **Precise Trimming:**
     * **Intuitive Start and End Time Selection:** Define the exact segments of the video you want to convert using a user-friendly interface, including numerical inputs.
     * **Visual Trim Slider:** Interactive slider for selecting trim points.
-    * **Intelligent Scene Detection:** Benefit from automatic scene change detection, which suggests potential trim points, streamlining the editing process.
+    * **Intelligent Scene Detection:** Benefit from automatic scene change detection (via `ai_trimming.py`), which suggests potential trim points, streamlining the editing process.
 * **Versatile Output Formats:**
     * **Animated GIF Generation:** Create high-quality animated GIFs perfect for sharing and embedding.
     * **Short MP4 Clip Creation:** Generate concise MP4 video clips suitable for various platforms.
 * **Flexible Audio Control (for MP4):** Choose whether to include or exclude the audio track when generating MP4 output.
-* **Extensive Customization Options:**
+* **Extensive Customization Options (powered by `video_processing.py`):**
     * **Frame Rate Control (FPS):** Precisely adjust the frames per second of the output GIF to control its smoothness and file size.
     * **Output Width Adjustment:** Set the desired width for the output video or GIF. The height will be automatically adjusted proportionally to maintain the aspect ratio.
+    * **Visual and Numerical Cropping:**
+        * **Interactive Visual Cropper:** Select crop area directly on the video preview with a draggable and resizable rectangle. Defaults to a 75% centered selection for new crops.
+        * **Numerical Inputs:** Specify exact X, Y, Width, and Height for precise cropping.
     * **Dynamic Text Overlays:** Add custom text to your video or GIF with a rich set of styling options:
         * Adjustable Font Size.
         * Various Font Styles (e.g., Arial, Times New Roman).
@@ -26,9 +29,6 @@ This project is a web application designed to empower users to effortlessly conv
         * Selectable Text Background Color.
         * Multiple Text Position Options (e.g., center, top-left, bottom-right).
         * **Live Preview:** See text overlay changes in real-time on the video player.
-    * **Visual and Numerical Cropping:**
-        * **Interactive Visual Cropper:** Select crop area directly on the video preview with a draggable and resizable rectangle. Defaults to a 75% centered selection for new crops.
-        * **Numerical Inputs:** Specify exact X, Y, Width, and Height for cropping.
     * **Playback Speed Manipulation:** Modify the playback speed of the output video or GIF to create slow-motion or fast-motion effects.
     * **Reverse Playback:** Play the output video or GIF in reverse for creative effects.
 * **Quick Presets:**
@@ -41,8 +41,13 @@ This project is a web application designed to empower users to effortlessly conv
     * **Responsive Design:** Built with Chakra UI for a seamless experience across various devices (desktop, tablet, mobile).
     * **Dark Mode Support:** Adapts to system light/dark themes.
     * **Tabbed Settings:** Editing options are organized into "Trim," "Output," "Crop," "Text Overlay," and "Effects" tabs.
+    * **Navigation:** Includes a persistent Navbar with a link to the homepage and a Footer with links to informational pages (About, Contact, FAQ, Privacy).
+    * **Homepage Tips:** Provides quick tips and an overview of the tool for new users.
     * **Progress Indicators:** Clear visual feedback for uploads (percentage & progress bar), analysis, and conversion.
     * **Informative Alerts:** User-friendly messages for success, errors, and information.
+* **Contact Form with Email Notifications:**
+    * Users can send messages via a contact form.
+    * Backend processes these messages and sends them to a designated email address.
 * **Optional File Security:** Integrates with ClamAV (if enabled) to perform optional virus scanning on uploaded files, enhancing security.
 * **Scalable Cloud Storage:** Leverages AWS S3 for efficient and reliable storage of both uploaded and processed video files.
 * **Output Display & Download:** Preview the converted file and download it easily.
@@ -55,16 +60,21 @@ This project is a web application designed to empower users to effortlessly conv
 * Chakra UI - A simple, modular component library for React.
 * Video.js - An open source HTML5 video player.
 * Axios - A promise-based HTTP client for the browser and Node.js.
+* React Router DOM - For client-side routing.
+* React Helmet Async - For managing document head elements (titles, meta tags).
 
 **Backend:**
 
 * Python - A versatile and powerful programming language.
 * Flask - A lightweight and flexible micro web framework for Python.
+* Flask-CORS - For handling Cross-Origin Resource Sharing.
+* Flask-Mail - For sending emails from the application.
 * MoviePy - A Python library for video editing.
 * Boto3 - The AWS SDK for Python, used for interacting with AWS S3.
 * yt-dlp - A youtube-dl fork with additional features and fixes for downloading videos from various URLs.
 * Pillow - A powerful image processing library for Python (often a dependency of MoviePy).
 * python-dotenv - A library for reading key-value pairs from a `.env` file into environment variables.
+* OpenCV (cv2) - Used for scene detection in `ai_trimming.py`.
 * ClamAV - An open-source antivirus engine (optional).
 
 **Infrastructure:**
@@ -81,6 +91,7 @@ Before diving into the setup, ensure you have the following installed and config
 * **FFmpeg:** A crucial command-line tool used by MoviePy for video processing. Make sure it's installed on your system and accessible through your system's PATH environment variable. You can typically install it using your operating system's package manager (e.g., `sudo apt-get install ffmpeg` on Debian/Ubuntu, `brew install ffmpeg` on macOS).
 * **ClamAV (Optional):** If you intend to enable virus scanning (`CLAMAV_ENABLED=true` in the backend `.env`), ensure you have the ClamAV daemon (`clamd`) and the command-line scanner (`clamscan`) installed and running on your system. Installation instructions vary depending on your operating system.
 * **AWS Account and S3 Bucket:** You will need an active AWS account and an S3 bucket created to store uploaded and processed video files.
+* **Email Account for Sending (e.g., Gmail with App Password):** If setting up the contact form, you'll need an email account configured for SMTP sending.
 * **Git:** For cloning the project repository. Download it from git-scm.com.
 
 ## 🛠️ Setup and Installation
@@ -116,13 +127,13 @@ Follow these steps to get the application up and running:
         pip install -r requirements.txt
         ```
 
-    * **Configure Environment Variables:** Create a `.env` file in the `backend` directory to store sensitive information like AWS credentials. You can start by copying the example file (if provided) or creating it manually.
+    * **Configure Environment Variables:** Create a `.env` file in the `backend` directory.
 
         ```bash
         touch .env
         ```
 
-        **Example `backend/.env` file (`backend/.env`):**
+        **Example `backend/.env` file:**
 
         ```env
         AWS_ACCESS_KEY_ID=your_aws_access_key_id
@@ -130,10 +141,20 @@ Follow these steps to get the application up and running:
         AWS_REGION=your_aws_s3_bucket_region # e.g., us-east-1
         S3_BUCKET=your_s3_bucket_name
         CLAMAV_ENABLED=true # Set to 'false' to disable ClamAV
-        # FLASK_DEBUG=True # Uncomment for development debug mode
+        FLASK_DEBUG=True # Set to 'False' for production
+
+        # Email Configuration for Flask-Mail (e.g., for Gmail)
+        MAIL_SERVER=smtp.gmail.com
+        MAIL_PORT=587
+        MAIL_USE_TLS=True
+        MAIL_USE_SSL=False
+        MAIL_USERNAME=your.gmail.address@gmail.com
+        MAIL_PASSWORD=your_gmail_app_password # Use an App Password if 2FA is enabled
+        MAIL_DEFAULT_SENDER='EasyGIFMaker Contact <your.gmail.address@gmail.com>'
+        CONTACT_FORM_RECIPIENT=your_receiving_email@example.com # Where contact messages will be sent
         ```
 
-        **Important:** Ensure you replace the placeholder values with your actual AWS credentials and S3 bucket details.
+        **Important:** Replace placeholder values with your actual credentials and details.
 
 3.  **Frontend Setup:**
     Navigate back to the project's root directory and then into the `frontend` directory:
@@ -142,142 +163,115 @@ Follow these steps to get the application up and running:
     cd ../frontend
     ```
 
-    * **Install JavaScript Dependencies:** Install all the required JavaScript packages using npm or yarn.
+    * **Install JavaScript Dependencies:**
 
         ```bash
         npm install
+        # or
+        # yarn install
         ```
 
-        **Alternatively, if you use yarn:**
-
-        ```bash
-        yarn install
-        ```
-
-    * **Configure Environment Variables:** Create a `.env` file in the `frontend` directory to store frontend-specific configurations.
+    * **Configure Environment Variables:** Create a `.env` file in the `frontend` directory.
 
         ```bash
         touch .env
         ```
 
-        **Example `frontend/.env` file (`frontend/.env`):**
+        **Example `frontend/.env` file:**
 
         ```env
         REACT_APP_API_URL=http://localhost:5000
         ```
 
-        Ensure `REACT_APP_API_URL` points to the address where your backend server will be running.
+        Ensure `REACT_APP_API_URL` points to your backend server.
 
 ## 🚀 Running the Application
 
-Follow these instructions to start both the backend and frontend servers:
-
 1.  **Start the Backend Server:**
-    Open a new terminal window, navigate to the `backend` directory, and activate the virtual environment if you haven't already:
+    Open a terminal, navigate to `backend/`, activate the virtual environment, and run:
 
     ```bash
-    cd backend
-    source venv/bin/activate # Or venv\Scripts\activate on Windows
     python app.py
     ```
-
-    The backend server will typically start and be accessible at `http://localhost:5000`. You should see output in the terminal indicating that the Flask development server is running.
+    The backend will typically run on `http://localhost:5000`.
 
 2.  **Start the Frontend Development Server:**
-    Open another terminal window, navigate to the `frontend` directory:
+    Open another terminal, navigate to `frontend/`, and run:
 
     ```bash
-    cd frontend
     npm start
     # or
     # yarn start
     ```
-
-    This command will usually open the frontend application in your default web browser, typically at `http://localhost:3000`. The frontend will then communicate with the backend server running on port 5000.
+    The frontend will typically open at `http://localhost:3000`.
 
 ## ⚙️ Environment Variables
 
-Here's a more detailed explanation of the environment variables used by the application:
-
 **Backend (`backend/.env`):**
 
-* `AWS_ACCESS_KEY_ID`: Your AWS IAM user's access key ID, which grants programmatic access to your AWS resources.
-* `AWS_SECRET_ACCESS_KEY`: Your AWS IAM user's secret access key, used in conjunction with the access key ID to authenticate your requests to AWS. **Treat this as highly sensitive information.**
-* `AWS_REGION`: The specific AWS region where your S3 bucket is located (e.g., `us-east-1`, `eu-west-2`). Ensure this matches your bucket's region.
-* `S3_BUCKET`: The name of the AWS S3 bucket that will be used to store uploaded and processed video files.
-* `CLAMAV_ENABLED`: A boolean value (`true` or `false`) that determines whether ClamAV virus scanning will be performed on uploaded files. Set to `true` to enable and `false` to disable. Ensure ClamAV is properly installed and configured if you enable this.
-* `FLASK_APP`: (Optional) Specifies the main Flask application file. It usually defaults to `app.py`.
-* `FLASK_ENV`: (Optional) Sets the Flask environment. Setting it to `development` enables debug mode, which provides more detailed error messages and automatic reloading upon code changes. This is generally recommended for development but should be disabled in production.
-* `PORT`: (Optional) Defines the port on which the Flask development server will listen. If not set here, it might be defined in the `app.py` file (typically defaults to 5000).
+* `AWS_ACCESS_KEY_ID`: Your AWS IAM user's access key ID.
+* `AWS_SECRET_ACCESS_KEY`: Your AWS IAM user's secret access key.
+* `AWS_REGION`: The AWS region of your S3 bucket (e.g., `us-east-1`).
+* `S3_BUCKET`: The name of your AWS S3 bucket.
+* `CLAMAV_ENABLED`: `true` or `false` to enable/disable ClamAV virus scanning.
+* `FLASK_DEBUG`: `True` for development (enables debug mode, auto-reloading), `False` for production.
+* `MAIL_SERVER`: SMTP server address (e.g., `smtp.gmail.com`).
+* `MAIL_PORT`: SMTP server port (e.g., `587` for TLS, `465` for SSL).
+* `MAIL_USE_TLS`: `True` or `False` to enable TLS.
+* `MAIL_USE_SSL`: `True` or `False` to enable SSL.
+* `MAIL_USERNAME`: Your email account username for SMTP authentication.
+* `MAIL_PASSWORD`: Your email account password or App Password for SMTP.
+* `MAIL_DEFAULT_SENDER`: The "From" address for emails sent by the application (e.g., `'Your App Name <you@example.com>'`).
+* `CONTACT_FORM_RECIPIENT`: The email address where contact form submissions will be sent.
+* `PORT`: (Optional) Port for the Flask server (defaults to 5000 if not set in `app.py` or here).
 
 **Frontend (`frontend/.env`):**
 
-* `REACT_APP_API_URL`: The base URL of your backend API. The frontend will make HTTP requests to this URL to interact with the backend (e.g., `http://localhost:5000`). The `REACT_APP_` prefix is necessary for Create React App to recognize these environment variables.
+* `REACT_APP_API_URL`: The base URL of your backend API (e.g., `http://localhost:5000`).
 
 ## 📂 Project Structure
 
-mp4-to-gif-converter/
-├── backend/
-│   ├── app.py              # Main Flask application file, defines API routes
-│   ├── utils/
-│   │   ├── video_processing.py # Contains the core video conversion logic using MoviePy
-│   │   └── ai_trimming.py      # Logic for automatic scene detection to suggest trim points
-│   ├── requirements.txt    # Lists all Python dependencies for the backend
-│   ├── venv/               # Python virtual environment directory (if created)
-│   └── .env                # Backend environment variables (should be gitignored)
-├── frontend/
-│   ├── public/
-│   │   └── index.html      # The main HTML file for the React application
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── Upload.js       # Component for handling video uploads and conversion settings
-│   │   │   ├── VideoPlayer.js  # Component integrating the Video.js player for previews
-│   │   │   └── TrimSlider.js   # UI component for selecting start and end trim points
-│   │   ├── App.js            # The root component of the React application
-│   │   └── index.js          # The entry point for the React application
-│   ├── package.json        # Defines frontend dependencies and scripts
-│   └── .env                # Frontend environment variables (should be gitignored)
-└── README.md               # This file, providing project information
+mp4-to-gif-converter/ ├── backend/ │ ├── app.py # Main Flask application file │ ├── utils/ │ │ ├── video_processing.py # Core video conversion logic │ │ └── ai_trimming.py # Scene detection logic │ ├── requirements.txt # Backend Python dependencies │ ├── venv/ # Python virtual environment │ └── .env # Backend environment variables ├── frontend/ │ ├── public/ │ │ ├── index.html # Main HTML file │ │ ├── robots.txt # Instructions for web crawlers │ │ └── sitemap.xml # XML sitemap for search engines │ ├── src/ │ │ ├── components/ # Reusable UI components (Upload, VideoPlayer, Navbar, Footer, etc.) │ │ ├── pages/ # Page-level components (HomePage, AboutPage, ContactPage, etc.) │ │ ├── App.js # Root React component with routing setup │ │ └── index.js # React application entry point │ ├── package.json # Frontend dependencies and scripts │ └── .env # Frontend environment variables └── README.md # This file
 
 
 ## 🌐 API Endpoints (Backend)
 
-Here's a brief overview of the primary API endpoints exposed by the backend application (defined in `backend/app.py`):
+* `POST /upload`: Accepts direct video file uploads.
+* `POST /process-url`: Handles video processing from a provided URL.
+* `POST /analyze`: Analyzes video for duration, scene changes, and generates a preview URL.
+* `POST /convert`: Performs video conversion based on user settings.
+* `POST /api/contact`: Receives contact form submissions and sends an email.
+* `GET /`: Basic health check endpoint for the API.
 
-* `POST /upload`: Accepts direct video file uploads from the frontend.
-* `POST /process-url`: Handles requests to process videos based on a provided URL.
-* `POST /analyze`: Analyzes the uploaded or URL-provided video to extract information like duration and scene changes, and generates a temporary preview URL.
-* `POST /convert`: Takes the processed video and user-defined settings to perform the conversion to either a GIF or an MP4 file.
-* `GET /`: A basic home endpoint that can be used to check if the API server is running.
-
-*(Note: All the above endpoints also support `OPTIONS` requests. These are automatically handled by Flask-CORS to facilitate Cross-Origin Resource Sharing (CORS) for web applications.)*
+*(Note: All endpoints support `OPTIONS` requests, handled by Flask-CORS for Cross-Origin Resource Sharing.)*
 
 ---
 
-This comprehensive README should provide a solid foundation for understanding, setting up, and running your MP4 to GIF & Short Video Converter project. Remember to replace any placeholder values with your actual configuration details.
+This comprehensive README should provide a solid foundation for understanding, setting up, and running your MP4 to GIF & Short Video Converter project.
 
 ## 🚀 Future Enhancements (Ideas)
 
-Here's a list of potential features and improvements we're considering for future versions:
+Here's a list of potential features and improvements for future versions:
 
-*   **Expanded Output Formats:** Add support for converting videos to other popular formats like WebM.
+*   **Expanded Output Formats:** Add support for converting videos to other formats like WebM.
 *   **Advanced Text Overlay Options:**
-    *   Implement more sophisticated text overlay features, such as text animations.
-    *   Ability for users to upload custom fonts.
-*   **Image Overlay/Watermarking:** Allow users to overlay images or add watermarks to their videos and GIFs.
+    *   Implement text animations.
+    *   Allow users to upload custom fonts.
+*   **Image Overlay/Watermarking:** Enable users to overlay images or add watermarks.
 *   **User Accounts and History:** Introduce user accounts to save conversion history and preferences.
-*   **Batch Processing:** Enable users to upload and process multiple videos simultaneously.
-*   **Enhanced Scene Detection and Smart Trimming:** Explore more advanced algorithms for scene detection and provide more intelligent trimming suggestions.
-*   **Dockerization:** Containerize the application using Docker for easier deployment and management across different environments.
-*   **Additional Video Effects/Filters (Beyond Speed/Reverse):**
+*   **Batch Processing:** Allow users to upload and process multiple videos simultaneously.
+*   **More Sophisticated Scene Detection:** Explore advanced algorithms for more nuanced scene detection.
+*   **Dockerization:** Containerize the application for easier deployment and scalability.
+*   **Additional Video Effects/Filters:**
     *   Brightness, contrast, saturation adjustments.
-    *   Grayscale, Sepia filters.
+    *   Artistic filters (e.g., Grayscale, Sepia).
 *   **Enhanced Visual Cropper Features:**
-    *   Aspect ratio locking for crop selection.
+    *   Aspect ratio locking during crop selection.
     *   Snapping options (to edges, center).
 *   **User-Saved Configurations/Templates:**
-    *   Allow users to save their current set of conversion settings as a template.
-    *   Ability to load saved templates for frequent tasks.
+    *   Allow users to save their custom conversion settings as templates.
 *   **Advanced GIF-Specific Options:**
-    *   Dithering options for better color quality in GIFs.
-    *   Loop count control.
+    *   Dithering options for improved color quality in GIFs.
+    *   Control over GIF loop counts.
+*   **Direct Social Media Sharing:** Integrate options to share converted GIFs/videos directly.
+*   **Internationalization (i18n):** Support for multiple languages in the UI.
