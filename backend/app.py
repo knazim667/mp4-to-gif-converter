@@ -1,5 +1,5 @@
-from flask import Flask, request, jsonify, make_response
-from flask_cors import CORS # Keep this if you use it globally
+from flask import Flask, request, jsonify, make_response # Added make_response for potential future use if needed
+from flask_cors import CORS
 import boto3
 import os
 import subprocess
@@ -7,7 +7,7 @@ import requests
 import shutil
 import yt_dlp  # For downloading from YouTube and other sites
 import uuid  # For generating unique filenames
-from flask_mail import Mail, Message # Import Mail and Message
+from flask_mail import Mail, Message
 
 from dotenv import load_dotenv
 import logging
@@ -16,14 +16,32 @@ from utils.ai_trimming import detect_scenes
 
 # Initialize Flask app
 app = Flask(__name__)
-# Example global CORS setup. Adjust origins as needed.
-CORS(app, resources={r"/api/*": { # Be more specific with your API routes
-    "origins": ["http://localhost:3000", "http://192.168.12.238:3000", "http://easygifmaker.com", "https://easygifmaker.com"],
-    "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
-    "allow_headers": ["Content-Type", "Authorization"]
-}})
-# If you have a very simple setup and want to allow all origins for all routes (less secure for production):
-# CORS(app)
+
+# Configure CORS:
+# This setup applies CORS to all routes (/*).
+# It allows requests from the specified origins, with the specified methods and headers.
+# Flask-CORS should automatically handle OPTIONS preflight requests for routes that have 'OPTIONS' in their methods list.
+CORS(app,
+     origins=["http://localhost:3000", "http://192.168.12.238:3000", "http://easygifmaker.com", "https://easygifmaker.com"], # Add your production domain later
+     methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+     allow_headers=["Content-Type", "Authorization"],
+     supports_credentials=True # Often useful, especially if you plan to use cookies or auth headers
+)
+
+# Explicitly handle OPTIONS requests if Flask-CORS doesn't catch them for some reason
+# This is a common pattern for ensuring OPTIONS requests are handled.
+@app.before_request
+def handle_preflight_requests():
+    if request.method.upper() == 'OPTIONS':
+        response = make_response()
+        # These headers should ideally be set by Flask-CORS,
+        # but we add them here as a fallback or for more direct control.
+        response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response, 204 # 204 No Content is standard for successful preflight
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -41,7 +59,7 @@ app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
 
-mail = Mail(app) # Initialize Flask-Mail
+mail = Mail(app)
 
 # Initialize AWS S3 client
 try:
@@ -128,11 +146,11 @@ def download_file_from_url(video_url, save_path_without_extension):
         return None
 
 # Upload endpoint
-@app.route('/api/upload', methods=['POST']) # Assuming OPTIONS is handled by global CORS
+@app.route('/upload', methods=['POST', 'OPTIONS']) # Ensure OPTIONS is listed
 def upload_file_route():
-    # If not using global CORS for OPTIONS, you'd handle it here:
-    # if request.method == 'OPTIONS': return _build_cors_preflight_response()
-    temp_local_path = None # Initialize to ensure it's defined for finally block
+    # Flask-CORS should handle the OPTIONS preflight request automatically.
+    # No need for: if request.method == 'OPTIONS': return jsonify({'status': 'ok'}), 200
+    temp_local_path = None
     try:
         if 'video' not in request.files:
             return jsonify({'status': 'error', 'message': 'No file part in request'}), 400
@@ -142,7 +160,7 @@ def upload_file_route():
 
         _, file_extension = os.path.splitext(file.filename)
         s3_filename = f"upload_{uuid.uuid4().hex}{file_extension}"
-        temp_local_path = f"temp_{s3_filename}" # Use a more unique temp name
+        temp_local_path = f"temp_{s3_filename}"
 
         allowed_extensions = ('.mp4', '.avi', '.mov', '.webm', '.mkv')
         if not file_extension.lower() in allowed_extensions:
@@ -150,14 +168,14 @@ def upload_file_route():
 
         file.save(temp_local_path)
         logger.info(f"Saved temporary file: {temp_local_path}")
-        scan_file(temp_local_path) # Scan the locally saved file
+        scan_file(temp_local_path)
         s3.upload_file(temp_local_path, S3_BUCKET_NAME, s3_filename)
         logger.info(f"Uploaded {s3_filename} to S3 bucket {S3_BUCKET_NAME}")
         return jsonify({'status': 'success', 'filename': s3_filename}), 200
-    except ValueError as ve: # Catches ClamAV infection or other ValueErrors
+    except ValueError as ve:
         logger.error(f"Upload failed: {ve}")
         return jsonify({'status': 'error', 'message': str(ve)}), 400
-    except SystemError as se: # Catches ClamAV system errors
+    except SystemError as se:
         logger.error(f"Upload failed due to system error: {se}")
         return jsonify({'status': 'error', 'message': str(se)}), 500
     except Exception as e:
@@ -170,9 +188,8 @@ def upload_file_route():
 
 
 # Endpoint to process video from URL
-@app.route('/api/process-url', methods=['POST'])
+@app.route('/process-url', methods=['POST', 'OPTIONS']) # Ensure OPTIONS is listed
 def process_url_route():
-    # if request.method == 'OPTIONS': return _build_cors_preflight_response()
     downloaded_temp_file_path = None
     try:
         data = request.get_json()
@@ -186,7 +203,6 @@ def process_url_route():
         if not downloaded_temp_file_path or not os.path.exists(downloaded_temp_file_path):
             return jsonify({'status': 'error', 'message': 'Failed to download or save video from URL'}), 500
 
-        # Use the actual downloaded filename (which includes extension from yt-dlp or guessed) for S3
         s3_filename = f"url_processed_{uuid.uuid4().hex}{os.path.splitext(downloaded_temp_file_path)[1]}"
         
         scan_file(downloaded_temp_file_path)
@@ -208,9 +224,8 @@ def process_url_route():
             logger.info(f"Removed temporary file from URL processing: {downloaded_temp_file_path}")
 
 # Analyze endpoint for AI trimming and getting video info
-@app.route('/api/analyze', methods=['POST'])
+@app.route('/analyze', methods=['POST', 'OPTIONS']) # Ensure OPTIONS is listed
 def analyze_file_route():
-    # if request.method == 'OPTIONS': return _build_cors_preflight_response()
     temp_input_filename = None
     try:
         data = request.get_json()
@@ -239,10 +254,10 @@ def analyze_file_route():
             'duration': duration,
             'preview_url': presigned_preview_url
         }), 200
-    except ValueError as ve: # Catches errors from detect_scenes if video can't be opened
+    except ValueError as ve:
         logger.error(f"Analysis failed: {ve}")
         return jsonify({'status': 'error', 'message': str(ve)}), 400
-    except Exception as e: # Catches S3 errors or other unexpected issues
+    except Exception as e:
         logger.error(f"Unexpected error during analysis: {e}", exc_info=True)
         return jsonify({'status': 'error', 'message': 'Server error during analysis'}), 500
     finally:
@@ -251,10 +266,8 @@ def analyze_file_route():
             logger.info(f"Removed temporary analysis file: {temp_input_filename}")
 
 # Convert endpoint
-@app.route('/api/convert', methods=['POST'])
+@app.route('/convert', methods=['POST', 'OPTIONS']) # Ensure OPTIONS is listed
 def convert_file_route():
-    # if request.method == 'OPTIONS': return _build_cors_preflight_response()
-
     temp_input_filename = None
     local_temp_output_path = None
     try:
@@ -273,12 +286,10 @@ def convert_file_route():
         speed_factor = data.get('speed_factor', 1.0)
         reverse = data.get('reverse', False)
         include_audio = data.get('include_audio', False)
-        # Crop parameters
         crop_x = data.get('crop_x')
         crop_y = data.get('crop_y')
         crop_w = data.get('crop_w')
         crop_h = data.get('crop_h')
-
 
         if not s3_input_filename:
             return jsonify({'status': 'error', 'message': 'Filename required for conversion'}), 400
@@ -295,7 +306,7 @@ def convert_file_route():
 
         crop_params = None
         if crop_x is not None and crop_y is not None and crop_w is not None and crop_h is not None:
-            if crop_w > 0 and crop_h > 0: # Basic validation
+            if crop_w > 0 and crop_h > 0:
                 crop_params = {'x1': crop_x, 'y1': crop_y, 'width': crop_w, 'height': crop_h}
             else:
                 logger.warning(f"Invalid crop dimensions received: W={crop_w}, H={crop_h}. Ignoring crop.")
@@ -306,7 +317,7 @@ def convert_file_route():
             font_size=font_size, text_position=text_position, text_color=text_color,
             font_style=font_style, text_bg_color=text_bg_color,
             speed_factor=speed_factor, reverse=reverse, include_audio=include_audio,
-            crop_params=crop_params # Pass crop parameters
+            crop_params=crop_params
         )
 
         content_type = 'video/mp4' if include_audio else 'image/gif'
@@ -322,13 +333,13 @@ def convert_file_route():
 
         return jsonify({
             'status': 'success',
-            'filename': s3_output_filename, # This is the S3 key
+            'filename': s3_output_filename,
             'url': presigned_output_url
         }), 200
-    except ValueError as ve: # Catches errors from video processing or other ValueErrors
+    except ValueError as ve:
         logger.error(f"Conversion failed: {ve}")
         return jsonify({'status': 'error', 'message': str(ve)}), 400
-    except Exception as e: # Catches S3 errors or other unexpected issues
+    except Exception as e:
         logger.error(f"Unexpected error during conversion: {e}", exc_info=True)
         return jsonify({'status': 'error', 'message': 'Server error during conversion'}), 500
     finally:
@@ -340,10 +351,8 @@ def convert_file_route():
             logger.info(f"Removed temporary output file: {local_temp_output_path}")
 
 # Contact Form Endpoint
-@app.route('/api/contact', methods=['POST']) # Assuming OPTIONS is handled by global CORS
+@app.route('/api/contact', methods=['POST', 'OPTIONS']) # Ensure OPTIONS is listed
 def handle_contact_form():
-    # If not using global CORS for OPTIONS, you'd handle it here:
-    # if request.method == 'OPTIONS': return _build_cors_preflight_response()
     try:
         data = request.get_json()
         name = data.get('name')
@@ -353,7 +362,6 @@ def handle_contact_form():
         if not all([name, email, message_body]):
             return jsonify({"message": "Missing required fields (name, email, message)"}), 400
 
-        # Basic email validation
         if "@" not in email or "." not in email:
                 return jsonify({"message": "Invalid email format"}), 400
 
@@ -364,7 +372,6 @@ def handle_contact_form():
 
         subject = f"New Contact Message from {name} via EasyGIFMaker.com"
         
-        # Using os.linesep for platform-independent newline handling, then replacing for HTML
         html_message_body = message_body.replace(os.linesep, '<br>')
         
         msg_html = f"""
@@ -386,20 +393,13 @@ def handle_contact_form():
         logger.error(f"Error handling contact form: {e}", exc_info=True)
         return jsonify({"message": "An error occurred while sending the message."}), 500
 
-# Helper for CORS preflight (only needed if not using global Flask-CORS for OPTIONS)
-# def _build_cors_preflight_response():
-#     response = make_response()
-#     response.headers.add("Access-Control-Allow-Origin", "*") # Or your specific frontend URL(s)
-#     response.headers.add('Access-Control-Allow-Headers', "Content-Type,Authorization") # Specify allowed headers
-#     response.headers.add('Access-Control-Allow-Methods', "GET,POST,OPTIONS,PUT,DELETE") # Specify allowed methods
-#     return response
-
 # Home endpoint for testing
 @app.route('/')
 def home():
     return jsonify({'message': 'MP4 to GIF Converter API is running!'}), 200
 
 if __name__ == '__main__':
-    # Make sure the PORT environment variable is used if set, otherwise default to 5000
     port = int(os.getenv('PORT', 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+    # For production, you'd typically use a WSGI server like Gunicorn or Waitress
+    # and set debug=False.
+    app.run(debug=os.getenv('FLASK_DEBUG', 'False').lower() == 'true', host='0.0.0.0', port=port)

@@ -1,5 +1,8 @@
 import React from 'react';
-import { Box, Heading, Text, VStack, Center, useColorModeValue } from '@chakra-ui/react';
+import {
+  Box, Heading, Text, VStack, Center, useColorModeValue,
+  List, ListItem, ListIcon, Divider, Link as ChakraLink
+} from '@chakra-ui/react';
 import Upload from '../components/Upload'; // Your main upload component
 import { Helmet } from 'react-helmet-async'; // For setting page title and meta description
 
@@ -7,6 +10,8 @@ function HomePage() {
   const pageBg = useColorModeValue('gray.50', 'gray.850'); // Slightly darker than footer for contrast if needed
   const headingColor = useColorModeValue('gray.800', 'whiteAlpha.900');
   const textColor = useColorModeValue('gray.600', 'gray.400');
+  const sectionBg = useColorModeValue('white', 'gray.750');
+  const sectionHeadingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
 
   return (
     <Box bg={pageBg} flexGrow={1}> {/* Ensure it takes up space */}
@@ -22,8 +27,50 @@ function HomePage() {
           Your free online tool to effortlessly convert MP4s & videos to animated GIFs and short MP4 clips.
         </Text>
       </VStack>
-      <Center pb={8}> {/* Added pb for spacing before footer */}
+      <Center pb={8} flexDirection="column"> {/* Changed to column for new sections */}
         <Upload />
+
+        {/* Quick Tips Section */}
+        <Box mt={12} p={{ base: 4, md: 6 }} bg={sectionBg} borderRadius="lg" shadow="md" w="full" maxW="2xl">
+          <Heading as="h3" size="lg" mb={4} color={sectionHeadingColor} textAlign="center">
+            Quick Tips for Best Results
+          </Heading>
+          <List spacing={3} color={textColor}>
+            <ListItem>
+              <ListIcon as={() => '💡'} color="yellow.500" />
+              For smaller GIF sizes, try reducing the FPS or the output width in the "Output" settings.
+            </ListItem>
+            <ListItem>
+              <ListIcon as={() => '✂️'} color="blue.500" />
+              Use the "Trim" feature to select only the most impactful part of your video.
+            </ListItem>
+            <ListItem>
+              <ListIcon as={() => '🖼️'} color="green.500" />
+              The "Crop" tool is perfect for focusing on a specific area of your video.
+            </ListItem>
+            <ListItem>
+              <ListIcon as={() => '✍️'} color="purple.500" />
+              Add personality with "Text Overlay" – experiment with fonts, colors, and positions!
+            </ListItem>
+            <ListItem>
+              <ListIcon as={() => '🚀'} color="orange.500" />
+              Check out "Quick Presets" for common configurations if you're in a hurry.
+            </ListItem>
+          </List>
+        </Box>
+
+        <Divider my={10} maxW="2xl" />
+
+        {/* About the Tool Section */}
+        <Box p={{ base: 4, md: 6 }} w="full" maxW="2xl" textAlign="center">
+          <Heading as="h3" size="lg" mb={3} color={sectionHeadingColor}>
+            More Than Just a Converter
+          </Heading>
+          <Text color={textColor} fontSize="md" mb={4}>
+            EasyGIFMaker.com provides a comprehensive suite of tools to transform your videos. From precise trimming and cropping to creative text overlays and effects, you have full control to create the perfect GIF or short MP4 clip. All online, for free!
+          </Text>
+          <ChakraLink href="/about" color="blue.500" fontWeight="semibold">Learn more about our features &rarr;</ChakraLink>
+        </Box>
       </Center>
     </Box>
   );
