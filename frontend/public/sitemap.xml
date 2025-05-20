@@ -23,5 +23,35 @@
     <priority>0.7</priority>
   </url>
 
-  <!-- Add other important URLs like /about, /contact, /privacy-policy etc. as they are created -->
+  <!-- About Us Page -->
+  <url>
+    <loc>https://www.easygifmaker.com/about</loc>
+    <lastmod>2023-10-28</lastmod> <!-- Update when content is finalized -->
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Contact Page -->
+  <url>
+    <loc>https://www.easygifmaker.com/contact</loc>
+    <lastmod>2023-10-28</lastmod> <!-- Update when content is finalized -->
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Help/FAQ Page -->
+  <url>
+    <loc>https://www.easygifmaker.com/help/faq</loc>
+    <lastmod>2023-10-28</lastmod> <!-- Update as FAQs are added/changed -->
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Privacy Policy Page -->
+  <url>
+    <loc>https://www.easygifmaker.com/privacy-policy</loc>
+    <lastmod>2023-10-28</lastmod> <!-- Update when content is finalized/reviewed -->
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
 </urlset>

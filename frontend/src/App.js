@@ -1,24 +1,30 @@
 import React from 'react';
-import { Box, Heading, Text, VStack, Center } from '@chakra-ui/react';
-import Upload from './components/Upload';
+import { BrowserRouter as Router } from 'react-router-dom';
+import { Box } from '@chakra-ui/react';
+import AppRoutes from './components/AppRoutes'; // Assuming AppRoutes is in components
+import Footer from './components/Footer';
+// import Navbar from './components/Navbar'; // Optional: if you add a Navbar
 
 function App() {
   return (
-    <Box minH="100vh" bg="gray.50" py={8}>
-      <VStack spacing={4} mb={8}>
-        <Heading as="h1" size={{ base: '2xl', md: '3xl' }} color="gray.800" textAlign="center">
-          MP4 to GIF Converter
-        </Heading>
-        <Text fontSize="lg" color="gray.600" textAlign="center">
-          Convert your videos to GIFs with ease
-        </Text>
-      </VStack>
-      <Center>
-        <Box w="full" maxW="2xl" px={4}>
-          <Upload />
+    // BrowserRouter enables routing for the entire application
+    <Router>
+      {/* Main application container using Chakra UI Box */}
+      {/* Flexbox ensures footer stays at the bottom */}
+      <Box display="flex" flexDirection="column" minH="100vh">
+        {/* Optional: Navbar would go here */}
+        {/* <Navbar /> */}
+
+        {/* Main content area that grows to fill available space */}
+        {/* AppRoutes will render the component based on the current URL */}
+        <Box flexGrow={1} py={8} /* bg="gray.50" - You might move bg to HomePage or keep it global */ >
+          <AppRoutes />
         </Box>
-      </Center>
-    </Box>
+
+        {/* Footer component, always visible */}
+        <Footer />
+      </Box>
+    </Router>
   );
 }
 
