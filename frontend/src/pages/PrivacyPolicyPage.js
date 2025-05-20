@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Heading, Text, VStack, UnorderedList, ListItem, useColorModeValue } from '@chakra-ui/react';
+import { Box, Heading, Text, VStack, UnorderedList, ListItem, useColorModeValue, Link as ChakraLink } from '@chakra-ui/react';
+import { Link as RouterLink } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 
 function PrivacyPolicyPage() {

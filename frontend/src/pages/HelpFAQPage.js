@@ -1,8 +1,10 @@
 import React from 'react';
 import {
-  Box, Heading, Text, VStack, Accordion, AccordionItem, AccordionButton, AccordionPanel, AccordionIcon, useColorModeValue
+  Box, Heading, Text, VStack, Accordion, AccordionItem, AccordionButton, AccordionPanel, AccordionIcon, useColorModeValue, Link as ChakraLink
 } from '@chakra-ui/react';
 import { Helmet } from 'react-helmet-async';
+import { Link as RouterLink } from 'react-router-dom'; // Import RouterLink
+
 
 const faqs = [
   {
@@ -47,7 +49,7 @@ function HelpFAQPage() {
         Help & Frequently Asked Questions
       </Heading>
 
-      <Accordion allowMultiple allowToggle>
+      <Accordion allowMultiple>
         {faqs.map((faq, index) => (
           <AccordionItem key={index} mb={4} border="none">
             <h2>
