@@ -16,7 +16,7 @@ function App() {
 
         {/* Main content area that grows to fill available space */}
         {/* AppRoutes will render the component based on the current URL */}
-        <Box flexGrow={1} py={8} /* bg="gray.50" - You might move bg to HomePage or keep it global */ >
+        <Box flexGrow={1} py={{ base: 4, md: 8 }} /* bg="gray.50" - You might move bg to HomePage or keep it global */ >
           <AppRoutes />
         </Box>
 

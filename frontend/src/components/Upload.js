@@ -83,7 +83,7 @@ function Upload() {
   // State for visual cropper
   const [showVisualCropper, setShowVisualCropper] = useState(false);
   const [videoPreviewDimensions, setVideoPreviewDimensions] = useState({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 });
-  const [selectionRect, setSelectionRect] = useState({ x: 0, y: 0, width: 100, height: 100 });
+  const [selectionRect, setSelectionRect] = useState({ x: 0, y: 0, width: 100, height: 100, selectionNaturalWidth: 0, selectionNaturalHeight: 0 });
 
 
   // State for visual cropper interaction
@@ -100,17 +100,8 @@ function Upload() {
   const apiUrl = process.env.REACT_APP_API_URL;
 
   // Chakra UI color mode values
-  const borderColor = useColorModeValue('gray.300', 'gray.600');
-  const dragActiveBg = useColorModeValue('blue.50', 'blue.900');
-  const dropZoneHoverBorder = useColorModeValue('blue.400', 'blue.500');
   const mainBg = useColorModeValue('white', 'gray.800');
   const mainText = useColorModeValue('gray.800', 'whiteAlpha.900');
-  const labelColor = useColorModeValue('gray.600', 'gray.400');
-  const dropZoneInitialBg = useColorModeValue('gray.50', 'gray.700');
-  const selectedFileNameColor = useColorModeValue('blue.600', 'blue.300');
-  const gifResultBoxBg = useColorModeValue('gray.50', 'gray.700');
-
-  // Hoisted color mode values
   const progressBoxBgColor = useColorModeValue("gray.50", "gray.700");
 
 
@@ -146,6 +137,8 @@ function Upload() {
     setCropW(null);
     setCropH(null);
     setShowVisualCropper(false);
+    setSelectionRect({ x: 0, y: 0, width: 0, height: 0, selectionNaturalWidth: 0, selectionNaturalHeight: 0 });
+    setVideoPreviewDimensions({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 });
     setOutputUrl(null);
     setIsUploading(false);
     setUploadProgress(0);
@@ -207,52 +200,46 @@ function Upload() {
       if (response.data && response.data.filename) {
           setUploadedFilename(response.data.filename);
           setMessage({ text: 'Video uploaded successfully. Ready to analyze.', type: 'success' });
-          // Get initial duration and dimensions for local preview
+          
           const video = document.createElement('video');
           video.preload = 'metadata';
-          video.src = localVideoUrl; // Use the same local blob for metadata
+          video.src = localVideoUrl; 
           video.onloadedmetadata = () => {
               setVideoDuration(video.duration);
               setTrim({ start: 0, end: video.duration });
               handleVideoMetadata({
-                  width: video.videoWidth,
+                  width: video.videoWidth, // Use videoWidth/Height for initial natural dimensions
                   height: video.videoHeight,
                   naturalWidth: video.videoWidth,
                   naturalHeight: video.videoHeight
               });
-              video.remove(); // Clean up the temporary video element
-              // Optionally trigger auto-analysis after upload success
-              // handleAnalyzeVideo(response.data.filename);
+              video.remove(); 
           };
           video.onerror = () => {
               console.error("Error loading video metadata from local file.");
               setMessage({ text: "Could not load video metadata from local file. Please try again.", type: 'error' });
-              video.remove(); // Clean up the temporary video element
-              // Decide if you want to reset or allow proceeding without metadata
-              // For now, keep uploadedFilename so analyze button is enabled
+              video.remove(); 
           };
-           // If metadata is already available (e.g., cached), trigger the handler immediately
           if (video.readyState >= 1) {
-               video.onloadedmetadata(); // Manually trigger
+               video.onloadedmetadata(); 
           }
       } else {
-          // Handle unexpected response structure
           console.error("Upload response missing filename:", response.data);
           setMessage({ text: 'Upload failed: Unexpected server response.', type: 'error' });
-          resetStatesForNewVideo(); // Reset on unexpected response
+          resetStatesForNewVideo(); 
       }
     })
     .catch(error => {
       console.error("Error uploading file:", error);
       const errorMessage = error.response?.data?.error || error.message || 'Unknown upload error.';
       setMessage({ text: `Upload failed: ${errorMessage}`, type: 'error' });
-      resetStatesForNewVideo(); // Reset on upload failure
+      resetStatesForNewVideo(); 
     })
     .finally(() => {
       setIsUploading(false);
-      setUploadProgress(0); // Reset progress bar
+      setUploadProgress(0); 
     });
-    setVideoUrlInput(''); // Clear URL input when file is selected
+    setVideoUrlInput(''); 
   };
 
 
@@ -268,7 +255,7 @@ function Upload() {
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    const droppedFile = e.dataTransfer.files?.[0]; // Use optional chaining
+    const droppedFile = e.dataTransfer.files?.[0]; 
     if (droppedFile) {
         const mockEvent = { target: { files: [droppedFile] } };
         handleFileChange(mockEvent);
@@ -282,21 +269,20 @@ function Upload() {
       setMessage({ text: 'Please enter a video URL.', type: 'error' });
       return;
     }
-    resetStatesForNewVideo(); // Reset all states for a new video
+    resetStatesForNewVideo(); 
     setMessage({ text: 'Processing URL...', type: 'info' });
-    setIsAnalyzing(true); // Use isAnalyzing for URL processing as it leads to analysis
+    setIsAnalyzing(true); 
 
     axios.post(`${apiUrl}/process-url`, { url: videoUrlInput })
       .then(response => {
         if (response.data && response.data.filename) {
             setUploadedFilename(response.data.filename);
             setMessage({ text: `Video from URL processed. Ready to analyze.`, type: 'success' });
-            // Trigger analysis after successful URL processing
             handleAnalyzeVideo(response.data.filename);
         } else {
              console.error("Process URL response missing filename:", response.data);
              setMessage({ text: 'URL processing failed: Unexpected server response.', type: 'error' });
-             resetStatesForNewVideo(); // Reset on unexpected response
+             resetStatesForNewVideo(); 
         }
       })
       .catch(error => {
@@ -304,7 +290,7 @@ function Upload() {
         const errorMessage = error.response?.data?.error || error.message || 'Unknown URL processing error.';
         setMessage({ text: `URL processing failed: ${errorMessage}`, type: 'error' });
         setIsAnalyzing(false);
-        resetStatesForNewVideo(); // Reset on URL processing failure
+        resetStatesForNewVideo(); 
       });
   };
 
@@ -313,59 +299,54 @@ function Upload() {
       setMessage({ text: 'No video available to analyze.', type: 'error' });
       return;
     }
-     if (isProcessing) { // Prevent multiple analysis clicks
+     if (isProcessing) { 
          console.log("Analysis already in progress or busy.");
          return;
      }
 
     setMessage({ text: 'Analyzing video...', type: 'info' });
     setIsAnalyzing(true);
-    setOutputUrl(null); // Clear previous output
+    setOutputUrl(null); 
 
     try {
       const analyzeResponse = await axios.post(`${apiUrl}/analyze`, { filename: filenameToAnalyze });
       if (analyzeResponse.data) {
-            setVideoDuration(analyzeResponse.data.duration || 0); // Default to 0 if duration is missing
-            setScenePoints(analyzeResponse.data.scenes || []); // Default to empty array
-            setTrim({ start: 0, end: analyzeResponse.data.duration || 0 }); // Use default 0 if duration missing
+            setVideoDuration(analyzeResponse.data.duration || 0); 
+            setScenePoints(analyzeResponse.data.scenes || []); 
+            setTrim({ start: 0, end: analyzeResponse.data.duration || 0 }); 
 
             const backendPreviewUrl = analyzeResponse.data.preview_url;
             if (backendPreviewUrl) {
               setVideoSrc(backendPreviewUrl);
             } else if (videoSrc && videoSrc.startsWith('blob:')) {
-               // Keep local preview if no backend preview is provided
-               // No need to set videoSrc if it's already the correct local blob
+              // Keep local blob if no backend preview
             } else {
-              setVideoSrc(null); // No preview available from backend or locally
+              setVideoSrc(null); 
             }
 
-            // Update video dimensions after analysis if backend provides them or rely on the current videoSrc
             const currentPreviewSrc = backendPreviewUrl || videoSrc;
             if (currentPreviewSrc) {
                 const video = document.createElement('video');
                 video.preload = 'metadata';
                 video.src = currentPreviewSrc;
                  video.onloadedmetadata = () => {
-                     handleVideoMetadata({
-                         width: video.videoWidth,
+                     handleVideoMetadata({ // This will set naturalWidth/Height correctly
+                         width: video.videoWidth, // Pass natural dimensions for consistency
                          height: video.videoHeight,
                          naturalWidth: video.videoWidth,
                          naturalHeight: video.videoHeight
                      });
-                      video.remove(); // Clean up
+                      video.remove(); 
                  };
                  video.onerror = () => {
                       console.error("Error loading video metadata after analysis for preview.");
-                       // Proceed with analysis results but inform user about preview issue
                       setMessage({ text: "Analysis complete, but could not load video preview.", type: 'warning' });
-                       video.remove(); // Clean up
+                       video.remove(); 
                  };
-                  // If metadata is already available
                  if (video.readyState >= 1) {
-                     video.onloadedmetadata(); // Manually trigger
+                     video.onloadedmetadata(); 
                  }
             } else {
-                 // No video source to load metadata from
                 handleVideoMetadata({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 });
             }
 
@@ -373,15 +354,15 @@ function Upload() {
       } else {
            console.error("Analysis response is empty or invalid:", analyzeResponse.data);
            setMessage({ text: 'Analysis failed: Unexpected server response.', type: 'error' });
-           resetStatesForNewVideo(); // Reset on invalid analysis response
+           resetStatesForNewVideo(); 
       }
     } catch (error) {
       console.error("Error analyzing video:", error);
       const errorMessage = error.response?.data?.error || error.message || 'Unknown analysis error.';
       setMessage({ text: `Analysis failed: ${errorMessage}`, type: 'error' });
-      resetStatesForNewVideo(); // Reset on analysis failure
+      resetStatesForNewVideo(); 
     } finally {
-      setVideoPlayerKey(Date.now()); // Force video player re-render
+      setVideoPlayerKey(Date.now()); 
       setIsAnalyzing(false);
     }
   };
@@ -432,28 +413,26 @@ function Upload() {
 
     try {
       const response = await axios.post(`${apiUrl}/convert`, conversionSettings, {
-          // Optional: Add timeout for conversion
-          // timeout: 600000 // e.g., 10 minutes
+          // timeout: 600000 
       });
       if (response.data && response.data.url) {
           setMessage({ text: `Successfully converted to ${finalOutputFormat.toUpperCase()}!`, type: 'success' });
           setOutputUrl(response.data.url);
-          setVideoPlayerKey(Date.now()); // Re-key to update player with new output
+          setVideoPlayerKey(Date.now()); 
       } else {
            console.error("Convert response missing URL:", response.data);
            setMessage({ text: `Conversion failed: Unexpected server response.`, type: 'error' });
-           setOutputUrl(null); // Clear output URL on failure
+           setOutputUrl(null); 
       }
     } catch (error) {
       console.error("Error converting video:", error);
       const errorMessage = error.response?.data?.error || error.message || 'Unknown conversion error.';
-       // Check for specific FFmpeg errors or timeouts if your backend provides them
       if (errorMessage.includes('ffmpeg') || error.code === 'ECONNABORTED') {
            setMessage({ text: `Conversion failed (Processing Error): ${errorMessage}. Try adjusting settings like duration, resolution, or effects.`, type: 'error' });
       } else {
            setMessage({ text: `Conversion failed: ${errorMessage}`, type: 'error' });
       }
-      setOutputUrl(null); // Clear output URL on failure
+      setOutputUrl(null); 
     } finally {
       setIsConverting(false);
     }
@@ -461,151 +440,128 @@ function Upload() {
 
   const handleTrimChange = useCallback(({ start, end }) => {
     setTrim({ start, end });
-  }, [setTrim]); // setTrim is stable, so this callback is stable
+  }, []); 
 
 
   const handleVisualCropChange = useCallback((newRect) => {
-    const minDimension = 10;
-    const validatedRect = {
-        x: Math.round(newRect.x ?? 0),
-        y: Math.round(newRect.y ?? 0),
-        width: Math.round(newRect.width ?? minDimension),
-        height: Math.round(newRect.height ?? minDimension),
-        selectionNaturalWidth: newRect.selectionNaturalWidth,
-        selectionNaturalHeight: newRect.selectionNaturalHeight,
-    };
+    const minDimension = 10; // Minimum pixel dimension for crop width/height
+    const naturalWidth = newRect.selectionNaturalWidth || 0;
+    const naturalHeight = newRect.selectionNaturalHeight || 0;
+
+    let validatedX = Math.round(newRect.x ?? 0);
+    let validatedY = Math.round(newRect.y ?? 0);
+    let validatedWidth = Math.round(newRect.width ?? minDimension);
+    let validatedHeight = Math.round(newRect.height ?? minDimension);
 
     // Ensure minimum dimensions
-    validatedRect.width = Math.max(minDimension, validatedRect.width);
-    validatedRect.height = Math.max(minDimension, validatedRect.height);
+    validatedWidth = Math.max(minDimension, validatedWidth);
+    validatedHeight = Math.max(minDimension, validatedHeight);
 
-    if (validatedRect.selectionNaturalWidth > 0 && validatedRect.selectionNaturalHeight > 0) {
-        // Clamp position to prevent exceeding bounds based on the *current* size
-        validatedRect.x = Math.max(0, Math.min(validatedRect.x, validatedRect.selectionNaturalWidth - validatedRect.width));
-        validatedRect.y = Math.max(0, Math.min(validatedRect.y, validatedRect.selectionNaturalHeight - validatedRect.height));
+    if (naturalWidth > 0 && naturalHeight > 0) {
+        // Clamp width and height to not exceed natural dimensions
+        validatedWidth = Math.min(validatedWidth, naturalWidth);
+        validatedHeight = Math.min(validatedHeight, naturalHeight);
 
-         // Recalculate size based on clamped position to ensure it doesn't go beyond bounds
-        validatedRect.width = Math.min(validatedRect.width, validatedRect.selectionNaturalWidth - validatedRect.x);
-        validatedRect.height = Math.min(validatedRect.height, validatedRect.selectionNaturalHeight - validatedRect.y);
+        // Clamp position to prevent exceeding bounds
+        validatedX = Math.max(0, Math.min(validatedX, naturalWidth - validatedWidth));
+        validatedY = Math.max(0, Math.min(validatedY, naturalHeight - validatedHeight));
+
+        // Recalculate size based on clamped position if necessary (should already be handled by above)
+        validatedWidth = Math.min(validatedWidth, naturalWidth - validatedX);
+        validatedHeight = Math.min(validatedHeight, naturalHeight - validatedY);
+    } else {
+        // If natural dimensions are not available, reset to zero or default small values
+        validatedX = 0;
+        validatedY = 0;
+        validatedWidth = minDimension;
+        validatedHeight = minDimension;
     }
+    
+    const finalRect = {
+        x: validatedX,
+        y: validatedY,
+        width: validatedWidth,
+        height: validatedHeight,
+        selectionNaturalWidth: naturalWidth,
+        selectionNaturalHeight: naturalHeight,
+    };
 
-    // Update states. These are stable setters and don't need to be in useCallback dependencies.
-    setCropX(validatedRect.x === 0 && validatedRect.width === validatedRect.selectionNaturalWidth ? null : validatedRect.x); // Set to null if full width from x=0
-    setCropY(validatedRect.y === 0 && validatedRect.height === validatedRect.selectionNaturalHeight ? null : validatedRect.y); // Set to null if full height from y=0
-    setCropW(validatedRect.width === validatedRect.selectionNaturalWidth && validatedRect.x === 0 ? null : validatedRect.width); // Set to null if full width
-    setCropH(validatedRect.height === validatedRect.selectionNaturalHeight && validatedRect.y === 0 ? null : validatedRect.height); // Set to null if full height
+    setCropX(finalRect.x === 0 && finalRect.width === finalRect.selectionNaturalWidth ? null : finalRect.x);
+    setCropY(finalRect.y === 0 && finalRect.height === finalRect.selectionNaturalHeight ? null : finalRect.y);
+    setCropW(finalRect.width === finalRect.selectionNaturalWidth && finalRect.x === 0 ? null : finalRect.width);
+    setCropH(finalRect.height === finalRect.selectionNaturalHeight && finalRect.y === 0 ? null : finalRect.height);
 
-    // selectionRect is local state managed by this hook, updating it here is fine
-    setSelectionRect(validatedRect);
+    setSelectionRect(finalRect);
 
-  }, []); // Dependency array is empty as state setters and local state (selectionRect) are stable
+  }, []); 
 
   const handleVideoMetadata = useCallback(({ width, height, naturalWidth, naturalHeight }) => {
-    setVideoPreviewDimensions({ width: width || 0, height: height || 0, naturalWidth: naturalWidth || 0, naturalHeight: naturalHeight || 0 });
+    // `width` and `height` here are the video player's display dimensions.
+    // `naturalWidth` and `naturalHeight` are the video's intrinsic dimensions.
+    setVideoPreviewDimensions({ 
+        width: width || 0, 
+        height: height || 0, 
+        naturalWidth: naturalWidth || 0, 
+        naturalHeight: naturalHeight || 0 
+    });
 
-    // Initialize or reset crop selection based on new video dimensions
     if (naturalWidth > 0 && naturalHeight > 0) {
-        // Initialize to full video size if no crop was previously set
-        const initialX = cropX !== null ? cropX : 0;
-        const initialY = cropY !== null ? cropY : 0;
-        const initialWidth = cropW !== null ? cropW : naturalWidth;
-        const initialHeight = cropH !== null ? cropH : naturalHeight;
+        const currentCropIsSet = cropX !== null || cropY !== null || cropW !== null || cropH !== null;
+        
+        const initialX = currentCropIsSet && cropX !== null ? cropX : 0;
+        const initialY = currentCropIsSet && cropY !== null ? cropY : 0;
+        const initialWidth = currentCropIsSet && cropW !== null ? cropW : naturalWidth;
+        const initialHeight = currentCropIsSet && cropH !== null ? cropH : naturalHeight;
 
-         // Ensure initial selection is within new bounds
-         const validatedInitialRect = {
-             x: Math.max(0, Math.min(initialX, naturalWidth - (initialWidth > 0 ? initialWidth : naturalWidth))),
-             y: Math.max(0, Math.min(initialY, naturalHeight - (initialHeight > 0 ? initialHeight : naturalHeight))),
-             width: Math.min(initialWidth > 0 ? initialWidth : naturalWidth, naturalWidth - Math.max(0, initialX)),
-             height: Math.min(initialHeight > 0 ? initialHeight : naturalHeight, naturalHeight - Math.max(0, initialY)),
+         handleVisualCropChange({
+             x: initialX,
+             y: initialY,
+             width: initialWidth,
+             height: initialHeight,
              selectionNaturalWidth: naturalWidth,
              selectionNaturalHeight: naturalHeight,
-         };
-        handleVisualCropChange(validatedInitialRect);
+         });
     } else {
-         // Reset crop and selection if dimensions are invalid
         handleVisualCropChange({
             x: 0, y: 0, width: 0, height: 0,
             selectionNaturalWidth: 0, selectionNaturalHeight: 0
         });
-         setCropX(null); setCropY(null); setCropW(null); setCropH(null); // Explicitly set crop to null
+         setCropX(null); setCropY(null); setCropW(null); setCropH(null);
     }
-  }, [cropX, cropY, cropW, cropH, handleVisualCropChange]); // Added crop dependencies
+  }, [cropX, cropY, cropW, cropH, handleVisualCropChange]); 
 
 
   useEffect(() => {
-    // This useEffect syncs the numerical crop inputs with the visual selectionRect
-    // when the visual cropper is hidden, or when video source/dimensions change.
-    // It also initializes the visual selectionRect when the visual cropper is shown.
-
-    // Initialize or update selectionRect when showing the cropper or dimensions change
     if (showVisualCropper && videoPreviewDimensions.naturalWidth > 0 && videoPreviewDimensions.naturalHeight > 0) {
         let initialX, initialY, initialWidth, initialHeight;
-        const displayWidth = videoPreviewDimensions.width; // Use current display width of the video player
-        const displayHeight = videoPreviewDimensions.height; // Use current display height
+        const natW = videoPreviewDimensions.naturalWidth;
+        const natH = videoPreviewDimensions.naturalHeight;
 
-        // Determine if the current numerical crop settings represent a full frame or no crop
         const isXUnsetOrZero = cropX === null || cropX === 0;
         const isYUnsetOrZero = cropY === null || cropY === 0;
-        // Compare with natural dimensions for "full" check, as cropW/H relate to natural dimensions
-        const isWUnsetOrFull = cropW === null || cropW === videoPreviewDimensions.naturalWidth; 
-        const isHUnsetOrFull = cropH === null || cropH === videoPreviewDimensions.naturalHeight;
+        const isWUnsetOrFull = cropW === null || cropW === natW; 
+        const isHUnsetOrFull = cropH === null || cropH === natH;
         const isEffectivelyUncropped = isXUnsetOrZero && isYUnsetOrZero && isWUnsetOrFull && isHUnsetOrFull;
 
-        if (isEffectivelyUncropped && displayWidth > 0 && displayHeight > 0) {
-            // Default to a smaller, centered rectangle (e.g., 75% of the *displayed* video dimensions)
-            // The selectionRect's x, y, width, height should be relative to the natural dimensions
-            // but calculated based on the display dimensions for initial appearance.
-            const scaleFactorX = videoPreviewDimensions.naturalWidth / displayWidth;
-            const scaleFactorY = videoPreviewDimensions.naturalHeight / displayHeight;
-
-            initialWidth = (displayWidth * 0.75) * scaleFactorX;
-            initialHeight = (displayHeight * 0.75) * scaleFactorY;
-            // Center it: (total - 75%_of_total) / 2 = (25%_of_total) / 2
-            initialX = ((displayWidth * (1 - 0.75)) / 2) * scaleFactorX; 
-            initialY = ((displayHeight * (1 - 0.75)) / 2) * scaleFactorY;
-
+        if (isEffectivelyUncropped) {
+            initialWidth = natW * 0.75;
+            initialHeight = natH * 0.75;
+            initialX = (natW - initialWidth) / 2; 
+            initialY = (natH - initialHeight) / 2;
         } else {
-            // User has specific numerical crop settings, use them
             initialX = cropX !== null ? cropX : 0;
             initialY = cropY !== null ? cropY : 0;
-            initialWidth = cropW !== null ? cropW : videoPreviewDimensions.naturalWidth;
-            initialHeight = cropH !== null ? cropH : videoPreviewDimensions.naturalHeight;
+            initialWidth = cropW !== null ? cropW : natW;
+            initialHeight = cropH !== null ? cropH : natH;
         }
-
-         const initialRect = {
+        handleVisualCropChange({
             x: initialX, y: initialY, width: initialWidth, height: initialHeight,
-            selectionNaturalWidth: videoPreviewDimensions.naturalWidth,
-            selectionNaturalHeight: videoPreviewDimensions.naturalHeight,
-         };
+            selectionNaturalWidth: natW,
+            selectionNaturalHeight: natH,
+        });
 
-         // Validate and clamp the initial selection rect to be within bounds
-         const validatedInitialRect = {
-             x: Math.max(0, Math.min(initialRect.x, initialRect.selectionNaturalWidth - (initialRect.width > 0 ? initialRect.width : initialRect.selectionNaturalWidth))),
-             y: Math.max(0, Math.min(initialRect.y, initialRect.selectionNaturalHeight - (initialRect.height > 0 ? initialRect.height : initialRect.selectionNaturalHeight))),
-             width: Math.min(initialRect.width > 0 ? initialRect.width : initialRect.selectionNaturalWidth, initialRect.selectionNaturalWidth - Math.max(0, initialRect.x)),
-             height: Math.min(initialRect.height > 0 ? initialRect.height : initialRect.selectionNaturalHeight, initialRect.selectionNaturalHeight - Math.max(0, initialRect.y)),
-              selectionNaturalWidth: initialRect.selectionNaturalWidth,
-              selectionNaturalHeight: initialRect.selectionNaturalHeight,
-         };
-         validatedInitialRect.width = Math.max(10, validatedInitialRect.width); // Ensure min dimension
-         validatedInitialRect.height = Math.max(10, validatedInitialRect.height); // Ensure min dimension
-
-
-        // Only update selectionRect if its content has actually changed
-        if (
-            validatedInitialRect.x !== selectionRect.x ||
-            validatedInitialRect.y !== selectionRect.y ||
-            validatedInitialRect.width !== selectionRect.width ||
-            validatedInitialRect.height !== selectionRect.height ||
-            validatedInitialRect.selectionNaturalWidth !== selectionRect.selectionNaturalWidth ||
-            validatedInitialRect.selectionNaturalHeight !== selectionRect.selectionNaturalHeight
-        ) {
-            setSelectionRect(validatedInitialRect);
-        }
     } else if (!showVisualCropper && videoPreviewDimensions.naturalWidth > 0 && videoPreviewDimensions.naturalHeight > 0) {
-        // When hiding the visual cropper, update cropX,Y,W,H based on the final selectionRect
-        // Add a small delay to ensure the last mouseup event has processed its state update
-        const updateCrop = setTimeout(() => {
+        const updateTimer = setTimeout(() => {
             const newCropX = selectionRect.x === 0 && selectionRect.width === selectionRect.selectionNaturalWidth ? null : selectionRect.x;
             const newCropY = selectionRect.y === 0 && selectionRect.height === selectionRect.selectionNaturalHeight ? null : selectionRect.y;
             const newCropW = selectionRect.width === selectionRect.selectionNaturalWidth && selectionRect.x === 0 ? null : selectionRect.width;
@@ -617,12 +573,9 @@ function Upload() {
                 setCropW(newCropW);
                 setCropH(newCropH);
             }
-        }, 50); // Added a small delay
-
-        return () => clearTimeout(updateCrop); // Cleanup the timer
-
+        }, 50); 
+        return () => clearTimeout(updateTimer);
     } else if (!videoSrc) {
-        // Reset crop and selection when no video source, only if they are not already reset
         if (cropX !== null || cropY !== null || cropW !== null || cropH !== null) {
             setCropX(null); setCropY(null); setCropW(null); setCropH(null);
         }
@@ -632,22 +585,32 @@ function Upload() {
             setSelectionRect({ x: 0, y: 0, width: 0, height: 0, selectionNaturalWidth: 0, selectionNaturalHeight: 0 });
         }
     }
-     // Depend on showVisualCropper, videoPreviewDimensions, crop states, selectionRect, videoSrc
-     // Dependencies adjusted to include crop states for proper initialization when showing cropper
-  }, [showVisualCropper, videoPreviewDimensions, cropX, cropY, cropW, cropH, selectionRect, videoSrc]);
+  }, [showVisualCropper, videoPreviewDimensions, cropX, cropY, cropW, cropH, videoSrc, handleVisualCropChange]); // selectionRect removed from here to avoid loops, handleVisualCropChange is memoized
 
+  // Helper to get coordinates from mouse or touch events
+  const getEventCoordinates = (e) => {
+    if (e.touches && e.touches.length > 0) {
+      return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+    }
+    return { clientX: e.clientX, clientY: e.clientY };
+  };
 
   useEffect(() => {
-    // This useEffect handles the actual mouse move and mouse up events for visual cropping
     if (!interaction.type || !visualCropContainerRef.current) return;
 
     const containerElement = visualCropContainerRef.current;
     const containerRect = containerElement.getBoundingClientRect();
 
-    const handleDocumentMouseMove = (e) => {
-      e.preventDefault();
-      const mouseXInContainer = e.clientX - containerRect.left;
-      const mouseYInContainer = e.clientY - containerRect.top;
+    const handleDocumentMove = (e) => {
+      if (e.type === 'touchmove' && e.cancelable) {
+        e.preventDefault();
+      }
+
+      const coords = getEventCoordinates(e);
+      if (coords.clientX === undefined || coords.clientY === undefined) return;
+
+      const currentXInContainer = coords.clientX - containerRect.left;
+      const currentYInContainer = coords.clientY - containerRect.top;
       const { initialRect, startX, startY, type, handle } = interaction;
       if (!initialRect) return;
 
@@ -656,17 +619,16 @@ function Upload() {
       const naturalWidth = initialRect.selectionNaturalWidth;
       const naturalHeight = initialRect.selectionNaturalHeight;
 
-      // Crucial check to prevent division by zero or incorrect scaling
       if (displayWidth <= 0 || displayHeight <= 0 || naturalWidth <= 0 || naturalHeight <= 0) {
-          console.warn("Invalid dimensions for crop calculation during mouse move.");
+          console.warn("Invalid dimensions for crop calculation during move.");
           return;
       }
 
       const scaleX = naturalWidth / displayWidth;
       const scaleY = naturalHeight / displayHeight;
 
-      const deltaXOriginal = (mouseXInContainer - startX) * scaleX;
-      const deltaYOriginal = (mouseYInContainer - startY) * scaleY;
+      const deltaXOriginal = (currentXInContainer - startX) * scaleX;
+      const deltaYOriginal = (currentYInContainer - startY) * scaleY;
 
       let newRect = { ...initialRect };
       const minDim = 10;
@@ -676,73 +638,80 @@ function Upload() {
         newRect.y = initialRect.y + deltaYOriginal;
       } else if (type === 'resize') {
         const { x: ix, y: iy, width: iw, height: ih } = initialRect;
-        let potentialNewWidth = iw;
-        let potentialNewHeight = ih;
-        let potentialNewX = ix;
-        let potentialNewY = iy;
+        let newX = ix;
+        let newY = iy;
+        let newW = iw;
+        let newH = ih;
 
-        if (handle.includes('e')) {
-          potentialNewWidth = iw + deltaXOriginal;
-        }
+        if (handle.includes('e')) newW = iw + deltaXOriginal;
         if (handle.includes('w')) {
-          potentialNewWidth = iw - deltaXOriginal;
-          potentialNewX = ix + (iw - potentialNewWidth);
+          newW = iw - deltaXOriginal;
+          newX = ix + deltaXOriginal;
         }
-        if (handle.includes('s')) {
-          potentialNewHeight = ih + deltaYOriginal;
-        }
+        if (handle.includes('s')) newH = ih + deltaYOriginal;
         if (handle.includes('n')) {
-          potentialNewHeight = ih - deltaYOriginal;
-           potentialNewY = iy + (ih - potentialNewHeight);
+          newH = ih - deltaYOriginal;
+          newY = iy + deltaYOriginal;
         }
 
-         // Apply minimum dimension clamp (using potential values)
-        newRect.width = Math.max(minDim, potentialNewWidth);
-        newRect.height = Math.max(minDim, potentialNewHeight);
-        newRect.x = potentialNewX;
-        newRect.y = potentialNewY;
-
+        if (newW < minDim) {
+          if (handle.includes('w')) newX = ix + iw - minDim;
+          newW = minDim;
+        }
+        if (newH < minDim) {
+          if (handle.includes('n')) newY = iy + ih - minDim;
+          newH = minDim;
+        }
+        
+        newRect.x = newX;
+        newRect.y = newY;
+        newRect.width = newW;
+        newRect.height = newH;
       }
-       // After calculating the potential new rect, validate and clamp its position and size
       handleVisualCropChange(newRect);
     };
 
-    const handleDocumentMouseUp = (e) => {
-      e.preventDefault();
-      // Final update on mouse up to ensure state is in sync
+    const handleDocumentEnd = () => {
       if (interaction.type && interaction.initialRect) {
-         handleVisualCropChange({ ...selectionRect }); // Use the latest selectionRect
+         handleVisualCropChange({ ...selectionRect }); 
       }
       setInteraction({ type: null, handle: null, startX: 0, startY: 0, initialRect: null });
     };
 
-    document.addEventListener('mousemove', handleDocumentMouseMove);
-    document.addEventListener('mouseup', handleDocumentMouseUp);
+    document.addEventListener('mousemove', handleDocumentMove);
+    document.addEventListener('touchmove', handleDocumentMove, { passive: false });
+    document.addEventListener('mouseup', handleDocumentEnd);
+    document.addEventListener('touchend', handleDocumentEnd);
+    document.addEventListener('touchcancel', handleDocumentEnd);
 
     return () => {
-      document.removeEventListener('mousemove', handleDocumentMouseMove);
-      document.removeEventListener('mouseup', handleDocumentMouseUp);
+      document.removeEventListener('mousemove', handleDocumentMove);
+      document.removeEventListener('touchmove', handleDocumentMove);
+      document.removeEventListener('mouseup', handleDocumentEnd);
+      document.removeEventListener('touchend', handleDocumentEnd);
+      document.removeEventListener('touchcancel', handleDocumentEnd);
     };
-    // Depend on interaction state (to attach/remove listeners), videoPreviewDimensions (for scaling),
-    // and handleVisualCropChange (as it's called within the handler)
-  }, [interaction, videoPreviewDimensions, handleVisualCropChange, selectionRect]); // Added selectionRect to deps
+  }, [interaction, videoPreviewDimensions, handleVisualCropChange, selectionRect]);
 
 
   const startInteraction = (e, type, handle = 'body') => {
-    e.preventDefault();
+    if (e.cancelable) e.preventDefault();
     e.stopPropagation();
     if (!visualCropContainerRef.current || isProcessing) return;
 
+    const coords = getEventCoordinates(e);
+    if (coords.clientX === undefined || coords.clientY === undefined) {
+        console.warn("Undefined coordinates in startInteraction");
+        return;
+    }
     const containerRect = visualCropContainerRef.current.getBoundingClientRect();
-    const startX = e.clientX - containerRect.left;
-    const startY = e.clientY - containerRect.top;
+    const startX = coords.clientX - containerRect.left;
+    const startY = coords.clientY - containerRect.top;
 
-     // Ensure we have valid dimensions before starting interaction
     if (videoPreviewDimensions.width <= 0 || videoPreviewDimensions.height <= 0 || selectionRect.selectionNaturalWidth <= 0 || selectionRect.selectionNaturalHeight <= 0) {
         console.warn("Cannot start crop interaction: Invalid video or selection dimensions.");
         return;
     }
-
     setInteraction({ type, handle, startX, startY, initialRect: { ...selectionRect } });
   };
 
@@ -760,7 +729,6 @@ function Upload() {
       setSpeedFactor(preset.settings.speedFactor);
       setReverse(preset.settings.reverse);
       setOutputFormat(preset.settings.includeAudio ? 'mp4' : 'gif');
-      // Note: Trim, Crop, and Text Overlay are not typically part of presets, so they are not reset here.
     }
   };
 
@@ -811,14 +779,14 @@ function Upload() {
       w="full"
     >
       <Heading as="h2" size="xl" mb={8} textAlign="center" fontWeight="bold">
-        Video to GIF & MP4 Converter
+        Video to GIF &amp; MP4 Converter
       </Heading>
       {message.text && (
         <Alert status={message.type} borderRadius="md" mb={6} variant="subtle">
           <AlertIcon />
           <Box flex="1">
             <AlertTitle mr={2} fontWeight="semibold">
-              {message.type === 'success' ? 'Success!' : message.type === 'error' ? 'Error!' : 'Info'}
+              {message.type === 'success' ? 'Success!' : message.type === 'error' ? 'Error!' : message.type === 'warning' ? 'Warning' : 'Info'}
             </AlertTitle>
             <AlertDescription display="block">{message.text}</AlertDescription>
           </Box>
@@ -834,19 +802,10 @@ function Upload() {
         onFileChange={handleFileChange}
         onVideoUrlInputChange={(e) => {
           setVideoUrlInput(e.target.value);
-          // Clear file input and related states when URL is entered
           if (e.target.value) {
             setFile(null);
             if (fileInputRef.current) fileInputRef.current.value = '';
-             setUploadedFilename('');
-             setVideoSrc(null);
-             setVideoDuration(0);
-             setTrim({ start: 0, end: 0 });
-             setScenePoints([]);
-             setVideoPreviewDimensions({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 });
-             setCropX(null); setCropY(null); setCropW(null); setCropH(null);
-             setShowVisualCropper(false);
-             setOutputUrl(null);
+             resetStatesForNewVideo(); // Reset all relevant states
           }
         }}
         onDragOver={handleDragOver}
@@ -858,20 +817,19 @@ function Upload() {
       <VStack spacing={6} align="stretch" mb={8}>
         <Button
           onClick={file ? () => handleAnalyzeVideo() : handleProcessUrl}
-          isDisabled={(!file && !videoUrlInput) || isProcessing || (!file && videoUrlInput.trim() === '')}
-          colorScheme="green"
+          isDisabled={(!file && !videoUrlInput.trim()) || isProcessing}
+          colorScheme="blue" // Changed for better consistency with other primary actions
           size="lg"
           w="full"
-          isLoading={isProcessing && !outputUrl} // Show spinner during analysis or initial processing
+          isLoading={isAnalyzing || (isUploading && !uploadedFilename)} 
           spinner={<Spinner size="md" />}
-          leftIcon={isProcessing && !outputUrl ? undefined : <Icon as={FiUploadCloud} />}
+          leftIcon={(isAnalyzing || (isUploading && !uploadedFilename)) ? undefined : <Icon as={FiUploadCloud} />}
         >
-          {isProcessing && !outputUrl ? 'Processing...' : 'Process Video'}
+          {(isAnalyzing || (isUploading && !uploadedFilename)) ? 'Processing...' : 'Process Video'}
         </Button>
       </VStack>
 
-       {/* Video Preview Area */}
-      {(videoSrc && !outputUrl && !showVisualCropper) && ( // Show standard player if videoSrc is available, no output, and cropper is hidden
+      {(videoSrc && !outputUrl && !showVisualCropper) && (
         <VideoPlayer
           key={videoPlayerKey}
           src={videoSrc}
@@ -880,15 +838,14 @@ function Upload() {
         />
       )}
 
-      {/* Visual Cropper Area */}
       {showVisualCropper && videoSrc && videoPreviewDimensions.naturalWidth > 0 && !isProcessing && (
-        <Box my={4} p={4} borderWidth="1px" borderRadius="lg" borderColor="blue.500" maxW="full" overflowX="auto">
-            <Heading size="md" mb={2}>Visual Crop</Heading>
+        <Box my={{ base: 3, md: 4 }} p={{ base: 2, md: 4 }} borderWidth="1px" borderRadius="lg" borderColor="blue.500" maxW="full" overflowX="auto">
+            <Heading size={{ base: 'sm', md: 'md' }} mb={2}>Visual Crop</Heading>
             {videoPreviewDimensions.naturalWidth > 0 && (
-                <Text mb={2}>Video Dimensions: {videoPreviewDimensions.naturalWidth}x{videoPreviewDimensions.naturalHeight} (Original)</Text>
+                <Text mb={2} fontSize="sm">Original Video: {videoPreviewDimensions.naturalWidth}x{videoPreviewDimensions.naturalHeight}px</Text>
             )}
              {videoPreviewDimensions.width > 0 && videoPreviewDimensions.height > 0 && (
-                <Text mb={4}>Displayed Preview Dimensions: {videoPreviewDimensions.width}x{videoPreviewDimensions.height}</Text>
+                <Text mb={{ base: 2, md: 4 }} fontSize="sm">Preview Display: {videoPreviewDimensions.width}x{videoPreviewDimensions.height}px</Text>
              )}
              {(videoPreviewDimensions.width > 0 && videoPreviewDimensions.height > 0 && videoSrc) ? (
                 <Box
@@ -896,17 +853,19 @@ function Upload() {
                     width={`${videoPreviewDimensions.width}px`}
                     height={`${videoPreviewDimensions.height}px`}
                     mx="auto"
-                    border="2px dashed gray"
+                    border="1px dashed gray"
                     ref={visualCropContainerRef}
-                    overflow="hidden"
-                    maxW="full"
+                    overflow="hidden" // Important for containing the video and selection
+                    maxW="full" // Ensure it doesn't overflow its parent
+                    userSelect="none" // Prevent text selection during drag
                 >
                     <video
                         src={videoSrc}
                         style={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain' }}
-                        controls={false}
+                        controls={false} // No controls for the crop preview
                         autoPlay={false}
                         muted
+                        draggable="false" // Prevent native drag
                     />
                     <Box
                         position="absolute"
@@ -918,13 +877,15 @@ function Upload() {
                             width: videoPreviewDimensions.width > 0 && selectionRect.selectionNaturalWidth > 0 ? `${(selectionRect.width / selectionRect.selectionNaturalWidth) * videoPreviewDimensions.width}px` : '0px',
                             height: videoPreviewDimensions.height > 0 && selectionRect.selectionNaturalHeight > 0 ? `${(selectionRect.height / selectionRect.selectionNaturalHeight) * videoPreviewDimensions.height}px` : '0px',
                             cursor: 'move',
-                            display: (selectionRect.width <=0 || selectionRect.height <=0 || selectionRect.selectionNaturalWidth <= 0 || selectionRect.selectionNaturalHeight <= 0) ? 'none' : 'block', // Hide if invalid dimensions
+                            display: (selectionRect.width <=0 || selectionRect.height <=0 || selectionRect.selectionNaturalWidth <= 0 || selectionRect.selectionNaturalHeight <= 0) ? 'none' : 'block',
                         }}
                         onMouseDown={(e) => startInteraction(e, 'drag')}
+                        onTouchStart={(e) => startInteraction(e, 'drag')}
+                        draggable="false"
                     >
                         {['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'].map(handleName => {
                             const handleSize = "12px";
-                            const handleOffset = "-6px";
+                            const handleOffset = "-6px"; // Half of handleSize to center it on the border
                             let handleStyle = {};
                             if (handleName.includes('n')) handleStyle.top = handleOffset;
                             if (handleName.includes('s')) handleStyle.bottom = handleOffset;
@@ -955,6 +916,8 @@ function Upload() {
                                     borderRadius="2px"
                                     style={handleStyle}
                                     onMouseDown={(e) => startInteraction(e, 'resize', handleName)}
+                                    onTouchStart={(e) => startInteraction(e, 'resize', handleName)}
+                                    draggable="false"
                                 />
                             );
                         })}
@@ -963,13 +926,11 @@ function Upload() {
              ) : (
                  <Text color="gray.500" textAlign="center">Video preview not available for visual cropping.</Text>
              )}
-            {/* Display current crop values relative to original dimensions */}
-            <Text mt={2} fontSize="sm">Current Crop (Original Dims): X={cropX !== null ? cropX : 'N/A'}, Y={cropY !== null ? cropY : 'N/A'}, W={cropW !== null ? cropW : 'N/A'}, H={cropH !== null ? cropH : 'N/A'}</Text>
+            <Text mt={{ base: 1, md: 2 }} fontSize="xs">Current Crop (Original Dims): X={cropX !== null ? cropX : 'Full'}, Y={cropY !== null ? cropY : 'Full'}, W={cropW !== null ? cropW : 'Full'}, H={cropH !== null ? cropH : 'Full'}</Text>
         </Box>
       )}
 
 
-      {/* Conversion Settings Section */}
       {uploadedFilename && videoDuration > 0 && (
         <ConversionSettingsOrchestrator
           videoDuration={videoDuration}
@@ -1001,10 +962,9 @@ function Upload() {
         />
       )}
 
-      {/* Convert Button */}
       {uploadedFilename && videoDuration > 0 && (
         <>
-          <Divider my={10} />
+          <Divider my={{ base: 6, md: 10 }} />
           <Button
             onClick={handleConvert}
             colorScheme="purple"
@@ -1013,7 +973,7 @@ function Upload() {
             isLoading={isConverting}
             spinner={<Spinner size="md" />}
             leftIcon={isConverting ? undefined : <Icon as={FiUploadCloud} transform="rotate(90deg)" />}
-            isDisabled={isProcessing || !uploadedFilename || videoDuration <= 0} // Disable if no video or duration
+            isDisabled={isProcessing || !uploadedFilename || videoDuration <= 0}
           >
             {isConverting ? 'Converting...' : `Convert to ${outputFormat.toUpperCase()}`}
           </Button>
@@ -1023,7 +983,7 @@ function Upload() {
       <OutputDisplay
         outputUrl={outputUrl}
         outputFormat={outputFormat}
-        liveTextOverlay={null}
+        liveTextOverlay={null} 
       />
     </Box>
   );

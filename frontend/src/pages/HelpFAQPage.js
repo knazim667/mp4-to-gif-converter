@@ -45,11 +45,11 @@ function HelpFAQPage() {
         <title>Help & FAQ - EasyGIFMaker.com</title>
         <meta name="description" content="Find answers to frequently asked questions about using EasyGIFMaker.com. Learn how to convert videos, trim, add text, and use other features." />
       </Helmet>
-      <Heading as="h1" size="xl" textAlign="center" mb={10} color={headingColor}>
+      <Heading as="h1" size={{ base: 'lg', md: 'xl' }} textAlign="center" mb={{ base: 6, md: 10 }} color={headingColor}>
         Help & Frequently Asked Questions
       </Heading>
 
-      <Accordion allowMultiple>
+      <Accordion allowMultiple width="100%">
         {faqs.map((faq, index) => (
           <AccordionItem key={index} mb={4} border="none">
             <h2>
@@ -58,14 +58,15 @@ function HelpFAQPage() {
                 bg={useColorModeValue('gray.100', 'gray.600')}
                 borderRadius="md"
                 p={4}
+                textAlign="left"
               >
-                <Box flex="1" textAlign="left" fontWeight="semibold">
+                <Box flex="1" fontWeight="semibold" fontSize={{ base: 'sm', md: 'md' }}>
                   {faq.question}
                 </Box>
                 <AccordionIcon />
               </AccordionButton>
             </h2>
-            <AccordionPanel pb={4} pt={3} bg={panelBgColor} borderRadius="md" color={textColor}>
+            <AccordionPanel pb={4} pt={3} bg={panelBgColor} borderRadius="md" color={textColor} fontSize={{ base: 'sm', md: 'md' }}>
               {faq.answer}
             </AccordionPanel>
           </AccordionItem>

@@ -43,14 +43,14 @@ function VideoEffectsSettings({
 
   return (
     <Box p={{ base: 4, md: 6 }} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg} id="effects-section">
-      <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Video Effects</Heading>
+      <Heading as="h4" size={{ base: 'sm', md: 'md' }} mb={5} color={settingsHeadingColor}>Video Effects</Heading>
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} alignItems="center">
         <FormControl isInvalid={!!speedFactorError}>
           <FormLabel htmlFor="speedFactor" color={labelColor}>Speed Factor</FormLabel>
           <NumberInput id="speedFactor" value={speedFactor} min={0.1} max={5.0} step={0.1} precision={1} onChange={handleSpeedFactorChange} focusBorderColor="blue.500">
             <NumberInputField />
             <NumberInputStepper><NumberIncrementStepper /><NumberDecrementStepper /></NumberInputStepper>
-          </NumberInput>
+          </NumberInput> {/* Removed allowMouseWheel for better mobile UX, it can be annoying */}
           {speedFactorError && <FormErrorMessage>{speedFactorError}</FormErrorMessage>}
         </FormControl>
         <FormControl display="flex" alignItems="center" pt={{ md: "32px" }}>

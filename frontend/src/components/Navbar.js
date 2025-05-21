@@ -10,7 +10,7 @@ function Navbar() {
   return (
     <Box bg={bgColor} px={{ base: 4, md: 8 }} py={3} shadow="sm" borderBottom="1px" borderColor={borderColor}>
       <Flex h={16} alignItems={'center'} justifyContent={'space-between'} maxW="container.xl" mx="auto">
-        <ChakraLink as={RouterLink} to="/" _hover={{ textDecoration: 'none' }}>
+        <ChakraLink as={RouterLink} to="/" _hover={{ textDecoration: 'none' }} title="EasyGIFMaker.com Home">
           <Heading as="h1" size="lg" color={textColor} letterSpacing={'tighter'}>
             EasyGIFMaker.com
           </Heading>

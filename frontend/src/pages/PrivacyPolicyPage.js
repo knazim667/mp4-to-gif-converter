@@ -15,20 +15,20 @@ function PrivacyPolicyPage() {
         <meta name="description" content="Read the Privacy Policy for EasyGIFMaker.com to understand how we handle your data and protect your privacy when you use our video to GIF conversion service." />
       </Helmet>
       <VStack spacing={6} align="stretch">
-        <Heading as="h1" size="xl" textAlign="center" color={headingColor}>
+        <Heading as="h1" size={{ base: 'lg', md: 'xl' }} textAlign="center" color={headingColor}>
           Privacy Policy for EasyGIFMaker.com
         </Heading>
-        <Text color={textColor}>Last Updated: {lastUpdated}</Text>
+        <Text color={textColor} fontSize={{ base: 'sm', md: 'md' }}>Last Updated: {lastUpdated}</Text>
 
-        <Text color={textColor}>
+        <Text color={textColor} fontSize={{ base: 'sm', md: 'md' }}>
           Welcome to EasyGIFMaker.com (the "Service"). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our services. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the site.
         </Text>
 
         <Box>
-          <Heading as="h2" size="lg" my={4} color={headingColor}>
+          <Heading as="h2" size={{ base: 'md', md: 'lg' }} my={4} color={headingColor}>
             Information We Collect
           </Heading>
-          <Text color={textColor} mb={2}>
+          <Text color={textColor} mb={2} fontSize={{ base: 'sm', md: 'md' }}>
             We may collect information about you in a variety of ways. The information we may collect on the Service includes:
           </Text>
           <UnorderedList spacing={2} color={textColor} pl={5}>
@@ -48,10 +48,10 @@ function PrivacyPolicyPage() {
         </Box>
 
         <Box>
-          <Heading as="h2" size="lg" my={4} color={headingColor}>
+          <Heading as="h2" size={{ base: 'md', md: 'lg' }} my={4} color={headingColor}>
             How We Use Your Information
           </Heading>
-          <Text color={textColor} mb={2}>
+          <Text color={textColor} mb={2} fontSize={{ base: 'sm', md: 'md' }}>
             Having accurate information permits us to provide you with a smooth, efficient, and customized experience. Specifically, we may use information collected about you via the Service to:
           </Text>
           <UnorderedList spacing={2} color={textColor} pl={5}>
@@ -66,25 +66,25 @@ function PrivacyPolicyPage() {
         </Box>
 
         <Box>
-          <Heading as="h2" size="lg" my={4} color={headingColor}>
+          <Heading as="h2" size={{ base: 'md', md: 'lg' }} my={4} color={headingColor}>
             Security of Your Information
           </Heading>
-          <Text color={textColor}>
+          <Text color={textColor} fontSize={{ base: 'sm', md: 'md' }}>
             We use administrative, technical, and physical security measures to help protect your personal information and uploaded files. While we have taken reasonable steps to secure the information you provide to us, please be aware that despite our efforts, no security measures are perfect or impenetrable, and no method of data transmission can be guaranteed against any interception or other type of misuse.
           </Text>
         </Box>
 
         <Box>
-          <Heading as="h2" size="lg" my={4} color={headingColor}>
+          <Heading as="h2" size={{ base: 'md', md: 'lg' }} my={4} color={headingColor}>
             Changes to This Privacy Policy
           </Heading>
-          <Text color={textColor}>
+          <Text color={textColor} fontSize={{ base: 'sm', md: 'md' }}>
             We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date. You are advised to review this Privacy Policy periodically for any changes.
           </Text>
         </Box>
 
         <Box>
-          <Heading as="h2" size="lg" my={4} color={headingColor}>
+          <Heading as="h2" size={{ base: 'md', md: 'lg' }} my={4} color={headingColor}>
             Contact Us
           </Heading>
           <Text color={textColor}>

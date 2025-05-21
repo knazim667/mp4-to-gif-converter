@@ -62,10 +62,10 @@ function ContactPage() {
         <title>Contact Us - EasyGIFMaker.com</title>
         <meta name="description" content="Get in touch with the EasyGIFMaker.com team. We'd love to hear your feedback, questions, or suggestions." />
       </Helmet>
-      <Heading as="h1" size="xl" textAlign="center" mb={10} color={headingColor}>
+      <Heading as="h1" size={{ base: 'lg', md: 'xl' }} textAlign="center" mb={{ base: 6, md: 10 }} color={headingColor}>
         Contact Us
       </Heading>
-      <Box bg={formBgColor} p={{base: 6, md: 8}} borderRadius="lg" shadow="md">
+      <Box bg={formBgColor} p={{base: 4, sm: 6, md: 8}} borderRadius="lg" shadow="md">
         <Text mb={6} color={textColor}>
           Have questions, feedback, or suggestions? We'd love to hear from you! Please fill out the form below, and we'll get back to you as soon as possible.
         </Text>

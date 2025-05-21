@@ -19,7 +19,7 @@ function HomePage() {
         <title>EasyGIFMaker: Free Online MP4 to GIF Converter & Editor</title>
         <meta name="description" content="Easily convert MP4s, YouTube videos, and more to high-quality animated GIFs with EasyGIFMaker.com. Free online tool with trimming, text overlay, cropping, speed adjustment, and reverse effects." />
       </Helmet>
-      <VStack spacing={4} mb={8} pt={8}> {/* Added pt to give some space from top if no navbar */}
+      <VStack spacing={4} mb={{ base: 6, md: 8 }} pt={{ base: 4, md: 8 }}> {/* Added pt to give some space from top if no navbar */}
         <Heading as="h1" size={{ base: 'xl', md: '2xl' }} color={headingColor} textAlign="center">
           EasyGIFMaker.com
         </Heading>
@@ -27,15 +27,15 @@ function HomePage() {
           Your free online tool to effortlessly convert MP4s & videos to animated GIFs and short MP4 clips.
         </Text>
       </VStack>
-      <Center pb={8} flexDirection="column"> {/* Changed to column for new sections */}
+      <Center pb={{ base: 6, md: 8 }} flexDirection="column" px={{ base: 2, md: 0 }}> {/* Added px for small padding on mobile */}
         <Upload />
 
         {/* Quick Tips Section */}
-        <Box mt={12} p={{ base: 4, md: 6 }} bg={sectionBg} borderRadius="lg" shadow="md" w="full" maxW="2xl">
-          <Heading as="h3" size="lg" mb={4} color={sectionHeadingColor} textAlign="center">
+        <Box mt={{ base: 8, md: 12 }} p={{ base: 4, md: 6 }} bg={sectionBg} borderRadius="lg" shadow="md" w="full" maxW={{ base: "full", md: "2xl" }}>
+          <Heading as="h3" size={{ base: 'md', md: 'lg' }} mb={4} color={sectionHeadingColor} textAlign="center">
             Quick Tips for Best Results
           </Heading>
-          <List spacing={3} color={textColor}>
+          <List spacing={3} color={textColor} fontSize={{ base: 'sm', md: 'md' }}>
             <ListItem>
               <ListIcon as={() => '💡'} color="yellow.500" />
               For smaller GIF sizes, try reducing the FPS or the output width in the "Output" settings.
@@ -59,14 +59,14 @@ function HomePage() {
           </List>
         </Box>
 
-        <Divider my={10} maxW="2xl" />
+        <Divider my={{ base: 6, md: 10 }} maxW={{ base: "90%", md: "2xl" }} />
 
         {/* About the Tool Section */}
-        <Box p={{ base: 4, md: 6 }} w="full" maxW="2xl" textAlign="center">
-          <Heading as="h3" size="lg" mb={3} color={sectionHeadingColor}>
+        <Box p={{ base: 4, md: 6 }} w="full" maxW={{ base: "full", md: "2xl" }} textAlign="center">
+          <Heading as="h3" size={{ base: 'md', md: 'lg' }} mb={3} color={sectionHeadingColor}>
             More Than Just a Converter
           </Heading>
-          <Text color={textColor} fontSize="md" mb={4}>
+          <Text color={textColor} fontSize={{ base: 'sm', md: 'md' }} mb={4}>
             EasyGIFMaker.com provides a comprehensive suite of tools to transform your videos. From precise trimming and cropping to creative text overlays and effects, you have full control to create the perfect GIF or short MP4 clip. All online, for free!
           </Text>
           <ChakraLink href="/about" color="blue.500" fontWeight="semibold">Learn more about our features &rarr;</ChakraLink>

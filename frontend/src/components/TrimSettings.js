@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Box,
   Heading, // Added Heading import
+  Text, // Added Text import
   useColorModeValue,
 } from '@chakra-ui/react';
 import TrimSlider from './TrimSlider';
@@ -20,7 +21,7 @@ function TrimSettings({
   return (
     <Box p={{ base: 4, md: 6 }} borderWidth="1px" borderRadius="lg" shadow="md" mb={8} bg={settingsBoxBg} id="trim-section">
       {/* Added Heading here for consistency */}
-      <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Trim Video</Heading>
+      <Heading as="h4" size={{ base: 'sm', md: 'md' }} mb={5} color={settingsHeadingColor}>Trim Video</Heading>
       {/* Only render TrimSlider if duration is available and positive */}
       {safeVideoDuration > 0 ? (
            <TrimSlider

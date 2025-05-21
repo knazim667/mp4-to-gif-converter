@@ -65,14 +65,14 @@ function ConversionSettingsOrchestrator({
   // Add checks for other critical props if necessary, though videoDuration is the main gate
 
   return (
-    <Box mt={10} maxWidth="container.lg" px={0}>
-      <Heading as="h3" size="lg" mb={6} textAlign="center" borderBottomWidth="2px" borderColor={borderColor} pb={3}>
+    <Box mt={{ base: 6, md: 10 }} maxWidth="container.lg" px={0}>
+      <Heading as="h3" size={{ base: 'md', md: 'lg' }} mb={{ base: 4, md: 6 }} textAlign="center" borderBottomWidth="2px" borderColor={borderColor} pb={{ base: 2, md: 3 }}>
         Conversion Settings
       </Heading>
 
       {/* Preset Selection */}
       {/* Ensure presets array is valid before mapping */}
-      {(presets && Array.isArray(presets) && presets.length > 0) && (
+      {(presets && Array.isArray(presets) && presets.length > 0) && ( // px added for consistency
           <FormControl mb={8} id="preset-selection" px={{ base: 4, md: 0 }}>
             <FormLabel htmlFor="presetSelect" color={labelColor} fontWeight="medium">Quick Presets</FormLabel>
             <Select id="presetSelect" value={selectedPreset} onChange={onPresetChange} focusBorderColor="blue.500" size="lg" bg={useColorModeValue("white", "gray.700")}>
@@ -87,7 +87,7 @@ function ConversionSettingsOrchestrator({
       )}
 
 
-      <Tabs isLazy variant="enclosed-colored" colorScheme="blue" mt={6}>
+      <Tabs isLazy variant="enclosed-colored" colorScheme="blue" mt={{ base: 4, md: 6 }}>
         <TabList overflowX="auto" overflowY="hidden" pb={2}>
           <Tab>Trim</Tab>
           <Tab>Output</Tab>
@@ -97,7 +97,7 @@ function ConversionSettingsOrchestrator({
         </TabList>
 
         <TabPanels mt={4}>
-          <TabPanel p={0}>
+          <TabPanel p={{ base: 2, md: 0 }}>
             {/* Pass props, handle potential null/undefined defensively in child components */}
             <TrimSettings
               videoDuration={videoDuration || 0} // Default to 0
@@ -105,7 +105,7 @@ function ConversionSettingsOrchestrator({
               scenes={scenePoints || []} // Default to empty array
             />
           </TabPanel>
-          <TabPanel p={0}>
+          <TabPanel p={{ base: 2, md: 0 }}>
              {/* Pass props, handle potential null/undefined defensively in child components */}
             <OutputOptionsSettings
               fps={fps ?? 10} // Default if null/undefined
@@ -116,7 +116,7 @@ function ConversionSettingsOrchestrator({
               setIncludeAudio={setIncludeAudio} // Assume setIncludeAudio is always a function
             />
           </TabPanel>
-          <TabPanel p={0}>
+          <TabPanel p={{ base: 2, md: 0 }}>
             {/* Pass props, handle potential null/undefined defensively in child components */}
             <CropSettings
               showVisualCropper={showVisualCropper ?? false} // Default
@@ -130,7 +130,7 @@ function ConversionSettingsOrchestrator({
               cropH={cropH} setCropH={setCropH}
             />
           </TabPanel>
-          <TabPanel p={0}>
+          <TabPanel p={{ base: 2, md: 0 }}>
             {/* Pass props, handle potential null/undefined defensively in child components */}
             <TextOverlaySettings
               textOverlay={textOverlay ?? ''} // Default to empty string
@@ -148,7 +148,7 @@ function ConversionSettingsOrchestrator({
               setTextPosition={setTextPosition} // Assume is a function
             />
           </TabPanel>
-          <TabPanel p={0}>
+          <TabPanel p={{ base: 2, md: 0 }}>
              {/* Pass props, handle potential null/undefined defensively in child components */}
             <VideoEffectsSettings
               speedFactor={speedFactor ?? 1.0} // Default

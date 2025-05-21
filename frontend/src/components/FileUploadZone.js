@@ -50,7 +50,7 @@ function FileUploadZone({
         transition="all 0.3s ease-in-out"
         onClick={onBrowseClick}
       >
-        <Icon as={FiUploadCloud} w={12} h={12} color={labelColor} mb={3} />
+        <Icon as={FiUploadCloud} w={{base: 10, md: 12}} h={{base: 10, md: 12}} color={labelColor} mb={3} />
         <Text color={labelColor} mb={4} fontSize="lg">
           {file ? (
             <Text as="span" fontWeight="medium" color={selectedFileNameColor}>
@@ -71,7 +71,7 @@ function FileUploadZone({
         <Button
           variant="outline"
           colorScheme="blue"
-          size="md"
+          size={{ base: 'sm', md: 'md' }}
           onClick={(e) => {
             e.stopPropagation(); // Prevent click event from bubbling to the parent Box
             onBrowseClick();

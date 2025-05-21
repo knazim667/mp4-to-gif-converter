@@ -111,12 +111,13 @@ function CropSettings({
 
   return (
     <Box p={{ base: 4, md: 6 }} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg} id="crop-section">
-      <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Crop Video (Optional)</Heading>
+      <Heading as="h4" size={{ base: 'sm', md: 'md' }} mb={5} color={settingsHeadingColor}>Crop Video (Optional)</Heading>
       <Button
         onClick={() => setShowVisualCropper(!showVisualCropper)}
         colorScheme={showVisualCropper ? "orange" : "blue"}
-        mb={4}
+        mb={{ base: 3, md: 4 }}
         isDisabled={!videoSrc || videoPreviewDimensions.naturalWidth === 0 || isProcessing}
+        w={{ base: 'full', md: 'auto' }}
       >
         {showVisualCropper ? "Hide Visual Cropper & Use Numerical Inputs" : "Visually Select Crop Area"}
       </Button>
@@ -124,7 +125,7 @@ function CropSettings({
         <>
           <Text fontSize="sm" color={labelColor} mb={4}>
             Specify crop numerically. Values are in pixels relative to original video.
-             {naturalWidth > 0 && naturalHeight > 0 && (
+             {(naturalWidth > 0 && naturalHeight > 0) && (
                  <Text as="span" fontWeight="semibold"> Video dimensions: {naturalWidth}x{naturalHeight}px.</Text>
              )}
              {!naturalWidth || !naturalHeight && (
@@ -132,7 +133,7 @@ function CropSettings({
              )}
           </Text>
           <SimpleGrid columns={{ base: 2, md: 4 }} spacing={6}>
-            <FormControl isInvalid={!!errors.x}>
+            <FormControl isInvalid={!!errors.x} id={`cropX-control`}>
               <FormLabel htmlFor="cropX" color={labelColor}>X</FormLabel>
               <NumberInput
                 id="cropX"
@@ -149,7 +150,7 @@ function CropSettings({
               </NumberInput>
               {errors.x && <FormErrorMessage>{errors.x}</FormErrorMessage>}
             </FormControl>
-            <FormControl isInvalid={!!errors.y}>
+            <FormControl isInvalid={!!errors.y} id={`cropY-control`}>
               <FormLabel htmlFor="cropY" color={labelColor}>Y</FormLabel>
               <NumberInput
                 id="cropY"
@@ -166,7 +167,7 @@ function CropSettings({
               </NumberInput>
               {errors.y && <FormErrorMessage>{errors.y}</FormErrorMessage>}
             </FormControl>
-            <FormControl isInvalid={!!errors.w}>
+            <FormControl isInvalid={!!errors.w} id={`cropW-control`}>
               <FormLabel htmlFor="cropW" color={labelColor}>Width</FormLabel>
               <NumberInput
                 id="cropW"
@@ -183,7 +184,7 @@ function CropSettings({
               </NumberInput>
               {errors.w && <FormErrorMessage>{errors.w}</FormErrorMessage>}
             </FormControl>
-            <FormControl isInvalid={!!errors.h}>
+            <FormControl isInvalid={!!errors.h} id={`cropH-control`}>
               <FormLabel htmlFor="cropH" color={labelColor}>Height</FormLabel>
               <NumberInput
                 id="cropH"

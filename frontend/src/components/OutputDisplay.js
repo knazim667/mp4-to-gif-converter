@@ -21,11 +21,11 @@ function OutputDisplay({ outputUrl, outputFormat, liveTextOverlay }) {
   }
 
   return (
-    <Box mt={10} p={{ base: 4, md: 6 }} borderWidth="1px" borderRadius="lg" shadow="xl" bg={gifResultBoxBg}>
-      <Heading as="h3" size="lg" mb={6} textAlign="center" color={resultHeadingColor}>
+    <Box mt={{ base: 6, md: 10 }} p={{ base: 3, md: 6 }} borderWidth="1px" borderRadius="lg" shadow="xl" bg={gifResultBoxBg}>
+      <Heading as="h3" size={{ base: 'md', md: 'lg' }} mb={{ base: 4, md: 6 }} textAlign="center" color={resultHeadingColor}>
         Your {outputFormat ? outputFormat.toUpperCase() : 'Output'} is Ready! {/* Added check for outputFormat */}
       </Heading>
-      <Box borderRadius="md" overflow="hidden">
+      <Box borderRadius="md" overflow="hidden" maxW="100%">
         <Center>
           {/* Assume VideoPlayer and Image handle invalid URLs gracefully */}
           {outputFormat === 'mp4' ? (
@@ -36,13 +36,13 @@ function OutputDisplay({ outputUrl, outputFormat, liveTextOverlay }) {
               liveTextOverlay={liveTextOverlay}
             />
           ) : (
-            <Image src={outputUrl || ''} alt={`Converted ${outputFormat ? outputFormat.toUpperCase() : 'Output'}`} maxW="full" borderRadius="md" />
+            <Image src={outputUrl || ''} alt={`Converted ${outputFormat ? outputFormat.toUpperCase() : 'Output'}`} maxW="100%" h="auto" borderRadius="md" />
           )}
         </Center>
       </Box>
        {/* Only show download button if outputUrl is valid */}
       {outputUrl && (
-          <Link href={outputUrl} download isExternal _hover={{ textDecoration: 'none' }}>
+          <Link href={outputUrl} download isExternal _hover={{ textDecoration: 'none' }} display="block" w="full">
             <Button colorScheme="teal" size="lg" w="full" mt={6} leftIcon={<Icon as={FiUploadCloud} transform="rotate(180deg)" />}>
               Download {outputFormat ? outputFormat.toUpperCase() : 'Output'}
             </Button>

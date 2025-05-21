@@ -124,7 +124,7 @@ function TextOverlaySettings({
 
   return (
     <Box p={{ base: 4, md: 6 }} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg} id="text-overlay-section">
-      <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Text Overlay (Optional)</Heading>
+      <Heading as="h4" size={{ base: 'sm', md: 'md' }} mb={5} color={settingsHeadingColor}>Text Overlay (Optional)</Heading>
       <VStack spacing={5} align="stretch">
         <FormControl isInvalid={!!textError}>
           <FormLabel htmlFor="textOverlay" color={labelColor}>Text</FormLabel>

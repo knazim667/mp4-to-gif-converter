@@ -13,15 +13,15 @@ function GuideAddTextToGIF() {
         <meta name="description" content="Learn how to easily add and customize text overlays on your animated GIFs using EasyGIFMaker.com's powerful online editor." />
       </Helmet>
       <VStack spacing={6} align="stretch">
-        <Heading as="h1" size="xl" textAlign="center" color={headingColor}>
+        <Heading as="h1" size={{ base: 'lg', md: 'xl' }} textAlign="center" color={headingColor}>
           Adding Text to Your GIFs with EasyGIFMaker.com
         </Heading>
 
-        <Text fontSize="lg" color={textColor}>
+        <Text fontSize={{ base: 'md', md: 'lg' }} color={textColor}>
           Adding text overlays can make your GIFs more engaging and informative. Here’s how to do it with EasyGIFMaker.com:
         </Text>
 
-        <OrderedList spacing={5} color={textColor} stylePosition="inside">
+        <OrderedList spacing={5} color={textColor} stylePosition="inside" fontSize={{ base: 'sm', md: 'md' }}>
           <ListItem>
             <Text fontWeight="semibold" display="inline">Upload or Process Your Video:</Text> Start by uploading your video file or processing a video URL as you normally would.
           </ListItem>
@@ -50,7 +50,7 @@ function GuideAddTextToGIF() {
           </ListItem>
         </OrderedList>
 
-        <Text fontSize="lg" color={textColor} mt={4}>
+        <Text fontSize={{ base: 'md', md: 'lg' }} color={textColor} mt={4}>
           Experiment with different styles and positions to make your text stand out!
         </Text>
       </VStack>

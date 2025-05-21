@@ -14,15 +14,15 @@ function GuideMP4ToGIF() {
         <meta name="description" content="Step-by-step guide on how to use EasyGIFMaker.com to convert your MP4 videos into animated GIFs quickly and easily." />
       </Helmet>
       <VStack spacing={6} align="stretch">
-        <Heading as="h1" size="xl" textAlign="center" color={headingColor}>
+        <Heading as="h1" size={{ base: 'lg', md: 'xl' }} textAlign="center" color={headingColor}>
           How to Convert MP4 to GIF with EasyGIFMaker.com
         </Heading>
 
-        <Text fontSize="lg" color={textColor}>
+        <Text fontSize={{ base: 'md', md: 'lg' }} color={textColor}>
           Converting your MP4 videos to animated GIFs is simple with EasyGIFMaker.com. Follow these easy steps:
         </Text>
 
-        <OrderedList spacing={5} color={textColor} stylePosition="inside">
+        <OrderedList spacing={5} color={textColor} stylePosition="inside" fontSize={{ base: 'sm', md: 'md' }}>
           <ListItem>
             <Text fontWeight="semibold" display="inline">Upload Your MP4 Video:</Text> You can either drag and drop your MP4 file into the upload zone, click to browse and select the file from your computer, or paste a video URL (including YouTube links).
           </ListItem>
@@ -48,7 +48,7 @@ function GuideMP4ToGIF() {
           </ListItem>
         </OrderedList>
 
-        <Text fontSize="lg" color={textColor} mt={4}>
+        <Text fontSize={{ base: 'md', md: 'lg' }} color={textColor} mt={4}>
           That's it! You've successfully created an animated GIF from your MP4 video.
         </Text>
       </VStack>

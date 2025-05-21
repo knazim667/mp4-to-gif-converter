@@ -79,7 +79,7 @@ function OutputOptionsSettings({
 
   return (
     <Box p={{ base: 4, md: 6 }} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg} id="output-options-section">
-      <Heading as="h4" size="md" mb={5} color={settingsHeadingColor}>Output Options</Heading>
+      <Heading as="h4" size={{ base: 'sm', md: 'md' }} mb={5} color={settingsHeadingColor}>Output Options</Heading>
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
         <FormControl isInvalid={!!fpsError}>
           <FormLabel htmlFor="fps" color={labelColor}>FPS</FormLabel>
@@ -117,7 +117,7 @@ function OutputOptionsSettings({
           {widthError && <FormErrorMessage>{widthError}</FormErrorMessage>}
         </FormControl>
       </SimpleGrid>
-      <FormControl display="flex" alignItems="center" mt={8}>
+      <FormControl display="flex" alignItems="center" mt={{ base: 6, md: 8 }}>
         <Checkbox
           id="includeAudioCheckbox"
           isChecked={includeAudio}

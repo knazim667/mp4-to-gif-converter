@@ -145,11 +145,11 @@ function VideoPlayer({ src, onMetadataLoaded, liveTextOverlay }) {
   }, [liveTextOverlay, playerRef.current]); // Re-run if overlay settings or player instance changes
 
   return (
-    <Box my={4} className="video-player-container">
-      <Heading as="h4" size="sm" mb={2} color={headingColor}>
+    <Box my={{ base: 3, md: 4 }} className="video-player-container">
+      <Heading as="h4" size={{ base: 'xs', md: 'sm' }} mb={2} color={headingColor}>
         Video Preview
       </Heading>
-      <Box data-vjs-player bg={playerBg} borderRadius="md" overflow="hidden">
+      <Box data-vjs-player bg={playerBg} borderRadius="md" overflow="hidden" maxW="100%">
         {/* 
           The `key` prop on the <video> element ensures that if the `src` changes,
           React treats the <video> element itself as a new element, forcing a full re-initialization

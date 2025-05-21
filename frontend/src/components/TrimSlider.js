@@ -54,7 +54,7 @@ function TrimSlider({ duration, scenes = [], onTrimChange }) {
   if (typeof duration !== 'number' || duration <= 0) {
       return (
            <Box>
-               <Heading as="h4" size="md" color={useColorModeValue('gray.800', 'whiteAlpha.900')} mb={2}>
+               <Heading as="h4" size={{ base: 'sm', md: 'md' }} color={useColorModeValue('gray.800', 'whiteAlpha.900')} mb={2}>
                    Trim Video
                </Heading>
                <Text color={labelColor}>Video duration is required for trimming.</Text>
@@ -65,8 +65,8 @@ function TrimSlider({ duration, scenes = [], onTrimChange }) {
 
   return (
     <Box mt={4}>
-      <Heading as="h3" size="md" color={useColorModeValue('gray.800', 'whiteAlpha.900')} mb={2}> {/* Use color mode value */}
-        Trim Video
+      <Heading as="h3" size={{ base: 'sm', md: 'md' }} color={useColorModeValue('gray.800', 'whiteAlpha.900')} mb={2}>
+        {/* Trim Video - Heading moved to TrimSettings for consistency */}
       </Heading>
       <Box>
         <FormControl>
