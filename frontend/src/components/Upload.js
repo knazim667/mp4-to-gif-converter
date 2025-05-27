@@ -1,3 +1,4 @@
+// /Users/abbaskhan/Documents/mp4-to-gif-converter/frontend/src/components/Upload.js
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import VideoPlayer from './VideoPlayer';
@@ -81,6 +82,9 @@ function Upload() {
   const [cropW, setCropW] = useState(null);
   const [cropH, setCropH] = useState(null);
   // State for visual cropper
+  // Aspect Ratio State - LIFTED HERE
+  const [selectedAspectRatioKey, setSelectedAspectRatioKey] = useState('custom'); 
+
   const [showVisualCropper, setShowVisualCropper] = useState(false);
   const [videoPreviewDimensions, setVideoPreviewDimensions] = useState({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 });
   const [selectionRect, setSelectionRect] = useState({ x: 0, y: 0, width: 100, height: 100, selectionNaturalWidth: 0, selectionNaturalHeight: 0 });
@@ -137,6 +141,7 @@ function Upload() {
     setCropW(null);
     setCropH(null);
     setShowVisualCropper(false);
+    setSelectedAspectRatioKey('custom'); // Reset aspect ratio
     setSelectionRect({ x: 0, y: 0, width: 0, height: 0, selectionNaturalWidth: 0, selectionNaturalHeight: 0 });
     setVideoPreviewDimensions({ width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 });
     setOutputUrl(null);
@@ -410,6 +415,12 @@ function Upload() {
       crop_w: cropW,
       crop_h: cropH,
     };
+    
+    console.log('[Upload.js handleConvert] Conversion Settings Payload:', conversionSettings);
+    // Log the state values directly as well to be sure
+    console.log('[Upload.js handleConvert] Current crop states:', { cropX, cropY, cropW, cropH });
+    console.log('[Upload.js handleConvert] Selected Aspect Ratio Key:', selectedAspectRatioKey);
+
 
     try {
       const response = await axios.post(`${apiUrl}/convert`, conversionSettings, {
@@ -541,40 +552,61 @@ function Upload() {
         const isYUnsetOrZero = cropY === null || cropY === 0;
         const isWUnsetOrFull = cropW === null || cropW === natW; 
         const isHUnsetOrFull = cropH === null || cropH === natH;
-        const isEffectivelyUncropped = isXUnsetOrZero && isYUnsetOrZero && isWUnsetOrFull && isHUnsetOrFull;
+        // If an aspect ratio is selected (not custom) OR specific crop values exist, use them.
+        // Otherwise, if it's effectively uncropped AND aspect ratio is custom, then default to 75%.
+        const useDefaultVisualCrop = (isXUnsetOrZero && isYUnsetOrZero && isWUnsetOrFull && isHUnsetOrFull) && selectedAspectRatioKey === 'custom';
 
-        if (isEffectivelyUncropped) {
+        if (useDefaultVisualCrop) {
             initialWidth = natW * 0.75;
             initialHeight = natH * 0.75;
             initialX = (natW - initialWidth) / 2; 
             initialY = (natH - initialHeight) / 2;
         } else {
+            // If an aspect ratio is selected, or crop values exist, use them.
+            // This ensures that if CropSettings.js calculated values based on AR, they are respected here.
             initialX = cropX !== null ? cropX : 0;
             initialY = cropY !== null ? cropY : 0;
             initialWidth = cropW !== null ? cropW : natW;
             initialHeight = cropH !== null ? cropH : natH;
         }
-        handleVisualCropChange({
+        console.log('[Upload.js useEffect - showVisualCropper] Initializing visual cropper. Use default:', useDefaultVisualCrop, 'Initial values:', { initialX, initialY, initialWidth, initialHeight, natW, natH, selectedAspectRatioKey });
+        handleVisualCropChange({ // This updates selectionRect AND cropX,Y,W,H
             x: initialX, y: initialY, width: initialWidth, height: initialHeight,
             selectionNaturalWidth: natW,
             selectionNaturalHeight: natH,
         });
 
     } else if (!showVisualCropper && videoPreviewDimensions.naturalWidth > 0 && videoPreviewDimensions.naturalHeight > 0) {
-        const updateTimer = setTimeout(() => {
-            const newCropX = selectionRect.x === 0 && selectionRect.width === selectionRect.selectionNaturalWidth ? null : selectionRect.x;
-            const newCropY = selectionRect.y === 0 && selectionRect.height === selectionRect.selectionNaturalHeight ? null : selectionRect.y;
-            const newCropW = selectionRect.width === selectionRect.selectionNaturalWidth && selectionRect.x === 0 ? null : selectionRect.width;
-            const newCropH = selectionRect.height === selectionRect.selectionNaturalHeight && selectionRect.y === 0 ? null : selectionRect.height;
+        // When numerical inputs are active (visual cropper is hidden)
+        // Ensure selectionRect stays in sync with cropX, cropY, cropW, cropH
+        // These cropX,Y,W,H are being set by CropSettings.js
+        const natW = videoPreviewDimensions.naturalWidth;
+        const natH = videoPreviewDimensions.naturalHeight;
+        const currentRectX = cropX !== null ? cropX : 0;
+        const currentRectY = cropY !== null ? cropY : 0;
+        // If cropW/H are null, it means full width/height relative to X/Y.
+        // For selectionRect, we need concrete values.
+        const currentRectW = cropW !== null ? cropW : (natW - currentRectX); // Ensure this calculation is correct for "full"
+        const currentRectH = cropH !== null ? cropH : (natH - currentRectY); // Ensure this calculation is correct for "full"
 
-            if (newCropX !== cropX || newCropY !== cropY || newCropW !== cropW || newCropH !== cropH) {
-                setCropX(newCropX);
-                setCropY(newCropY);
-                setCropW(newCropW);
-                setCropH(newCropH);
-            }
-        }, 50); 
-        return () => clearTimeout(updateTimer);
+        if (
+            selectionRect.x !== currentRectX ||
+            selectionRect.y !== currentRectY ||
+            selectionRect.width !== currentRectW ||
+            selectionRect.height !== currentRectH ||
+            selectionRect.selectionNaturalWidth !== natW ||
+            selectionRect.selectionNaturalHeight !== natH
+        ) {
+            console.log('[Upload.js useEffect - !showVisualCropper] Syncing selectionRect from crop props:', { currentRectX, currentRectY, currentRectW, currentRectH, natW, natH });
+            setSelectionRect({
+                x: currentRectX,
+                y: currentRectY,
+                width: currentRectW,
+                height: currentRectH,
+                selectionNaturalWidth: natW,
+                selectionNaturalHeight: natH,
+            });
+        }
     } else if (!videoSrc) {
         if (cropX !== null || cropY !== null || cropW !== null || cropH !== null) {
             setCropX(null); setCropY(null); setCropW(null); setCropH(null);
@@ -584,8 +616,28 @@ function Upload() {
             selectionRect.selectionNaturalWidth !== 0 || selectionRect.selectionNaturalHeight !== 0) {
             setSelectionRect({ x: 0, y: 0, width: 0, height: 0, selectionNaturalWidth: 0, selectionNaturalHeight: 0 });
         }
+        if (selectedAspectRatioKey !== 'custom') { // Also reset aspect ratio if video is removed
+            setSelectedAspectRatioKey('custom');
+        }
+        // console.log('[Upload.js useEffect - !videoSrc] Resetting crop states and aspect ratio.'); // Keep for debugging if needed
+    } else {
+        // console.log('[Upload.js useEffect] General state check:', { showVisualCropper, natW, natH, cropX, cropY, cropW, cropH, selectedAspectRatioKey, videoSrcExists: !!videoSrc });
+
     }
-  }, [showVisualCropper, videoPreviewDimensions, cropX, cropY, cropW, cropH, videoSrc, handleVisualCropChange]); // selectionRect removed from here to avoid loops, handleVisualCropChange is memoized
+  // Original deps: [showVisualCropper, videoPreviewDimensions, cropX, cropY, cropW, cropH, videoSrc, handleVisualCropChange]
+  // Adding selectedAspectRatioKey because the logic for initializing visual cropper might depend on it.
+  }, [showVisualCropper, videoPreviewDimensions, cropX, cropY, cropW, cropH, videoSrc, handleVisualCropChange, selectedAspectRatioKey]);
+// `selectionRect` was removed from deps to prevent loops, as it's set inside.
+
+
+  // Log changes to critical crop states
+  useEffect(() => {
+    console.log('[Upload.js] Crop state changed: ', { cropX, cropY, cropW, cropH });
+  }, [cropX, cropY, cropW, cropH]);
+
+  useEffect(() => {
+    console.log('[Upload.js] selectedAspectRatioKey changed: ', selectedAspectRatioKey);
+  }, [selectedAspectRatioKey]);
 
   // Helper to get coordinates from mouse or touch events
   const getEventCoordinates = (e) => {
@@ -945,6 +997,8 @@ function Upload() {
           videoPreviewDimensions={videoPreviewDimensions}
           isProcessing={isProcessing}
           cropX={cropX} setCropX={setCropX}
+          selectedAspectRatioKey={selectedAspectRatioKey} // Pass down
+          setSelectedAspectRatioKey={setSelectedAspectRatioKey} // Pass down
           cropY={cropY} setCropY={setCropY}
           cropW={cropW} setCropW={setCropW}
           cropH={cropH} setCropH={setCropH}

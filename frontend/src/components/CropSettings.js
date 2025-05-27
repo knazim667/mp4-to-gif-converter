@@ -1,3 +1,4 @@
+// /Users/abbaskhan/Documents/mp4-to-gif-converter/frontend/src/components/CropSettings.js
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
@@ -7,10 +8,13 @@ import {
   FormLabel,
   NumberInput,
   NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
   Button,
   Text,
   FormErrorMessage,
-  Select, // Added Select
+  Select,
   useColorModeValue,
 } from '@chakra-ui/react';
 
@@ -24,6 +28,8 @@ function CropSettings({
   cropY, setCropY,
   cropW, setCropW,
   cropH, setCropH,
+  selectedAspectRatioKey, // Prop from parent
+  setSelectedAspectRatioKey, // Prop from parent
 }) {
   const settingsBoxBg = useColorModeValue('white', 'gray.750');
   const settingsHeadingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
@@ -36,6 +42,8 @@ function CropSettings({
     h: '',
   });
 
+  const MIN_CROP_DIMENSION = 10;
+
   const aspectRatios = [
     { name: 'Custom', value: 'custom' },
     { name: 'Original Video', value: 'original' },
@@ -47,173 +55,214 @@ function CropSettings({
     { name: '9:16 (Tall Portrait)', value: (9 / 16).toString() },
   ];
 
-  const [selectedAspectRatioKey, setSelectedAspectRatioKey] = useState('custom');
-  const lastEditedDimension = useRef(null); // To manage linked input updates
+  // const [selectedAspectRatioKey, setSelectedAspectRatioKey] = useState('custom'); // Removed: Use prop from parent
+  const lastEditedDimension = useRef(null); // To manage linked input updates when user types
+  const isProgrammaticRatioChangeRef = useRef(false); // Flag for programmatic aspect ratio changes
 
-  // Use default 0 if dimensions are not yet available
   const naturalWidth = videoPreviewDimensions?.naturalWidth || 0;
   const naturalHeight = videoPreviewDimensions?.naturalHeight || 0;
+
+  useEffect(() => {
+    console.log('[CropSettings.js] Props received:', { cropX, cropY, cropW, cropH, selectedAspectRatioKey, naturalWidth, naturalHeight });
+  }, [cropX, cropY, cropW, cropH, selectedAspectRatioKey, naturalWidth, naturalHeight]);
+
 
   // Validation logic for numerical inputs
   useEffect(() => {
     const newErrors = { x: '', y: '', w: '', h: '' };
-    // It's important that crop values are numbers for these comparisons,
-    // or null if not yet set. Handle empty strings from NumberInput field
     const currentCropX = cropX === null || cropX === '' ? null : Number(cropX);
     const currentCropY = cropY === null || cropY === '' ? null : Number(cropY);
     const currentCropW = cropW === null || cropW === '' ? null : Number(cropW);
     const currentCropH = cropH === null || cropH === '' ? null : Number(cropH);
 
-    // Only validate if natural dimensions are available
     if (naturalWidth > 0 && naturalHeight > 0) {
-
-        // Validate Width
-        if (currentCropW !== null) {
-            if (isNaN(currentCropW) || currentCropW <= 0) {
-              newErrors.w = 'Width must be a positive number.';
-            } else if (currentCropW > naturalWidth) {
-              newErrors.w = `Width cannot exceed video width (${naturalWidth}px).`;
-            }
+      if (currentCropW !== null) {
+        if (isNaN(currentCropW) || currentCropW <= 0) {
+          newErrors.w = 'Width must be a positive number.';
+        } else if (currentCropW < MIN_CROP_DIMENSION) {
+          newErrors.w = `Width must be at least ${MIN_CROP_DIMENSION}px.`;
+        } else if (currentCropW > naturalWidth) {
+          newErrors.w = `Width cannot exceed video width (${naturalWidth}px).`;
         }
+      }
 
-
-        // Validate Height
-        if (currentCropH !== null) {
-             if (isNaN(currentCropH) || currentCropH <= 0) {
-              newErrors.h = 'Height must be a positive number.';
-            } else if (currentCropH > naturalHeight) {
-              newErrors.h = `Height cannot exceed video height (${naturalHeight}px).`;
-            }
+      if (currentCropH !== null) {
+        if (isNaN(currentCropH) || currentCropH <= 0) {
+          newErrors.h = 'Height must be a positive number.';
+        } else if (currentCropH < MIN_CROP_DIMENSION) {
+          newErrors.h = `Height must be at least ${MIN_CROP_DIMENSION}px.`;
+        } else if (currentCropH > naturalHeight) {
+          newErrors.h = `Height cannot exceed video height (${naturalHeight}px).`;
         }
+      }
 
-        // Validate X offset
-        if (currentCropX !== null) {
-            if (isNaN(currentCropX) || currentCropX < 0) {
-              newErrors.x = 'X offset must be a non-negative number.';
-            } else if (currentCropW !== null && !isNaN(currentCropW) && currentCropW > 0 && (currentCropX + currentCropW) > naturalWidth) {
-              if (newErrors.w === '') { // Only show this if width itself is not the primary issue
-                 // Check if the calculated total width exceeds natural width, considering valid inputs
-                if (currentCropX >= 0 && currentCropW > 0 && (currentCropX + currentCropW) > naturalWidth + 0.5) { // Add tolerance for floating point
-                     newErrors.x = `X + Width exceeds video width (${naturalWidth}px).`;
-                }
-              }
-            }
+      if (currentCropX !== null) {
+        if (isNaN(currentCropX) || currentCropX < 0) {
+          newErrors.x = 'X offset must be a non-negative number.';
+        } else if (currentCropW !== null && !isNaN(currentCropW) && currentCropW > 0 && (currentCropX + currentCropW) > naturalWidth + 0.5) { // Add tolerance
+          if (newErrors.w === '') {
+            newErrors.x = `X + Width exceeds video width (${naturalWidth}px).`;
+          }
         }
+      }
 
-
-        // Validate Y offset
-        if (currentCropY !== null) {
-             if (isNaN(currentCropY) || currentCropY < 0) {
-              newErrors.y = 'Y offset must be a non-negative number.';
-            } else if (currentCropH !== null && !isNaN(currentCropH) && currentCropH > 0 && (currentCropY + currentCropH) > naturalHeight) {
-               if (newErrors.h === '') { // Only show this if height itself is not the primary issue
-                 // Check if the calculated total height exceeds natural height, considering valid inputs
-                 if (currentCropY >= 0 && currentCropH > 0 && (currentCropY + currentCropH) > naturalHeight + 0.5) { // Add tolerance for floating point
-                    newErrors.y = `Y + Height exceeds video height (${naturalHeight}px).`;
-                 }
-              }
-            }
+      if (currentCropY !== null) {
+        if (isNaN(currentCropY) || currentCropY < 0) {
+          newErrors.y = 'Y offset must be a non-negative number.';
+        } else if (currentCropH !== null && !isNaN(currentCropH) && currentCropH > 0 && (currentCropY + currentCropH) > naturalHeight + 0.5) { // Add tolerance
+          if (newErrors.h === '') {
+            newErrors.y = `Y + Height exceeds video height (${naturalHeight}px).`;
+          }
         }
+      }
     } else {
-        // Clear errors if dimensions are not available (settings should be disabled anyway)
-        newErrors.x = ''; newErrors.y = ''; newErrors.w = ''; newErrors.h = '';
+      newErrors.x = ''; newErrors.y = ''; newErrors.w = ''; newErrors.h = '';
     }
-
     setErrors(newErrors);
-
   }, [cropX, cropY, cropW, cropH, naturalWidth, naturalHeight]);
 
   // Effect to apply aspect ratio when cropW is changed by user while AR is active
   useEffect(() => {
+    // If change is from programmatic aspect ratio selection, skip this effect's adjustment
+    if (isProgrammaticRatioChangeRef.current) return;
+
     if (selectedAspectRatioKey === 'custom' || selectedAspectRatioKey === 'original' || lastEditedDimension.current === 'height') {
-      if (lastEditedDimension.current === 'height') lastEditedDimension.current = null; // Reset if height was the source
+      if (lastEditedDimension.current === 'height') lastEditedDimension.current = null;
       return;
     }
     const ratio = parseFloat(selectedAspectRatioKey);
-    if (cropW !== null && !isNaN(cropW) && cropW > 0 && !isNaN(ratio) && ratio > 0 && naturalHeight > 0) {
+    if (cropW !== null && !isNaN(cropW) && Number(cropW) >= MIN_CROP_DIMENSION && !isNaN(ratio) && ratio > 0 && naturalHeight > 0) {
       const newH = Math.round(cropW / ratio);
-      const clampedH = Math.max(1, Math.min(newH, naturalHeight - (cropY || 0)));
+      const clampedH = Math.max(MIN_CROP_DIMENSION, Math.min(newH, naturalHeight - (cropY || 0)));
       if (clampedH !== cropH) {
-        lastEditedDimension.current = 'width'; // Mark width as the source
+        lastEditedDimension.current = 'width';
         setCropH(clampedH);
       }
     }
-  }, [cropW, selectedAspectRatioKey, cropY, naturalHeight, setCropH, cropH]); // Added cropH to deps for re-evaluation if it was out of sync
+  }, [cropW, selectedAspectRatioKey, cropY, naturalHeight, setCropH, cropH]); // Removed isProgrammaticRatioChangeRef from deps as it's a ref
 
   // Effect to apply aspect ratio when cropH is changed by user while AR is active
   useEffect(() => {
+    // If change is from programmatic aspect ratio selection, skip this effect's adjustment
+    // and reset the flag as this is the second effect to run in the cycle.
+    if (isProgrammaticRatioChangeRef.current) {
+        isProgrammaticRatioChangeRef.current = false; // Reset flag here
+        return;
+    }
+
     if (selectedAspectRatioKey === 'custom' || selectedAspectRatioKey === 'original' || lastEditedDimension.current === 'width') {
-      if (lastEditedDimension.current === 'width') lastEditedDimension.current = null; // Reset if width was the source
+      if (lastEditedDimension.current === 'width') lastEditedDimension.current = null;
       return;
     }
     const ratio = parseFloat(selectedAspectRatioKey);
-    if (cropH !== null && !isNaN(cropH) && cropH > 0 && !isNaN(ratio) && ratio > 0 && naturalWidth > 0) {
+    if (cropH !== null && !isNaN(cropH) && Number(cropH) >= MIN_CROP_DIMENSION && !isNaN(ratio) && ratio > 0 && naturalWidth > 0) {
       const newW = Math.round(cropH * ratio);
-      const clampedW = Math.max(1, Math.min(newW, naturalWidth - (cropX || 0)));
+      const clampedW = Math.max(MIN_CROP_DIMENSION, Math.min(newW, naturalWidth - (cropX || 0)));
       if (clampedW !== cropW) {
-        lastEditedDimension.current = 'height'; // Mark height as the source
+        lastEditedDimension.current = 'height';
         setCropW(clampedW);
       }
     }
-  }, [cropH, selectedAspectRatioKey, cropX, naturalWidth, setCropW, cropW]); // Added cropW to deps
+  }, [cropH, selectedAspectRatioKey, cropX, naturalWidth, setCropW, cropW]); // Removed isProgrammaticRatioChangeRef from deps
 
 
   const handleAspectRatioChange = (event) => {
     const newKey = event.target.value;
-    setSelectedAspectRatioKey(newKey);
-    lastEditedDimension.current = null; // Reset when user picks a new AR from dropdown
+    console.log('[CropSettings.js handleAspectRatioChange] New AR Key selected:', newKey);
+    setSelectedAspectRatioKey(newKey); // This now calls the prop function from Upload.js
+    lastEditedDimension.current = null; 
 
-    if (newKey === 'custom' || naturalWidth <= 0 || naturalHeight <= 0) {
+    if (naturalWidth <= 0 || naturalHeight <= 0) return;
+    console.log('[CropSettings.js handleAspectRatioChange] Natural Dims:', { naturalWidth, naturalHeight });
+
+    isProgrammaticRatioChangeRef.current = true; // Signal programmatic change
+
+    if (newKey === 'custom') {
+        // For custom, we don't auto-set crop. User defines it.
+        // Resetting the flag is important if effects were skipped.
+        // The cropH effect will reset it. If it doesn't run (e.g. no video yet),
+        console.log('[CropSettings.js handleAspectRatioChange] AR set to Custom.');
+        // we might need to ensure it's false.
+        // However, the effects will run due to setSelectedAspectRatioKey,
+        // and the cropH effect will reset the flag.
       return;
     }
 
-    let currentX = cropX === null ? 0 : Number(cropX);
-    let currentY = cropY === null ? 0 : Number(cropY);
-    let currentW = cropW === null ? naturalWidth : Number(cropW);
-    let currentH = cropH === null ? naturalHeight : Number(cropH);
-
     if (newKey === 'original') {
+      console.log('[CropSettings.js handleAspectRatioChange] AR set to Original. Setting full dimensions.');
       setCropX(0);
       setCropY(0);
       setCropW(naturalWidth);
       setCropH(naturalHeight);
+      // The effects will run, and the cropH effect will reset isProgrammaticRatioChangeRef
       return;
     }
 
-    const ratio = parseFloat(newKey);
-    if (isNaN(ratio) || ratio <= 0) return;
-
-    // Attempt to maintain current width and adjust height, then fit and center
-    let targetW = currentW > 0 ? currentW : naturalWidth * 0.8; // Use current width or 80% of video width
-    let targetH = Math.round(targetW / ratio);
-
-    // If calculated height exceeds video bounds, recalculate based on video height
-    if (targetH > naturalHeight) {
-      targetH = naturalHeight;
-      targetW = Math.round(targetH * ratio);
-    }
-    // If calculated width (after potential height adjustment) exceeds video bounds
-    if (targetW > naturalWidth) {
-      targetW = naturalWidth;
-      targetH = Math.round(targetW / ratio);
+    const targetRatio = parseFloat(newKey);
+    if (isNaN(targetRatio) || targetRatio <= 0) {
+        console.warn('[CropSettings.js handleAspectRatioChange] Invalid targetRatio:', newKey);
+        // Invalid ratio, reset flag if necessary (cropH effect will handle it)
+        return;
     }
 
-    // Ensure minimum dimensions
-    targetW = Math.max(10, targetW);
-    targetH = Math.max(10, targetH);
+    let newW, newH;
 
-    // Center the new crop box
-    let finalX = Math.round(Math.max(0, currentX + (currentW - targetW) / 2));
-    let finalY = Math.round(Math.max(0, currentY + (currentH - targetH) / 2));
+    if ((naturalWidth / naturalHeight) > targetRatio) {
+      console.log('[CropSettings.js handleAspectRatioChange] Video is wider than target AR. Height is constraint.');
+      newH = naturalHeight;
+      newW = Math.round(newH * targetRatio);
+    } else {
+      console.log('[CropSettings.js handleAspectRatioChange] Video is taller/same AR as target. Width is constraint.');
+      newW = naturalWidth;
+      newH = Math.round(newW / targetRatio);
+    }
     
-    // Ensure the new crop box is within video boundaries
-    finalX = Math.min(finalX, naturalWidth - targetW);
-    finalY = Math.min(finalY, naturalHeight - targetH);
+    let finalW = newW;
+    let finalH = newH;
+
+    console.log('[CropSettings.js handleAspectRatioChange] Initial calculated W/H:', { finalW, finalH });
+
+    if (finalW < MIN_CROP_DIMENSION) {
+        finalW = MIN_CROP_DIMENSION;
+        finalH = Math.round(finalW / targetRatio);
+        console.log('[CropSettings.js handleAspectRatioChange] Adjusted W to min, new H:', { finalW, finalH });
+    }
+    if (finalH < MIN_CROP_DIMENSION) {
+        finalH = MIN_CROP_DIMENSION;
+        finalW = Math.round(finalH * targetRatio);
+        console.log('[CropSettings.js handleAspectRatioChange] Adjusted H to min, new W:', { finalW, finalH });
+    }
+
+    if (finalW > naturalWidth) {
+        const scale = naturalWidth / finalW;
+        finalW = naturalWidth;
+        finalH = Math.round(finalH * scale);
+        console.log('[CropSettings.js handleAspectRatioChange] Scaled down W due to naturalWidth, new H:', { finalW, finalH });
+    }
+    if (finalH > naturalHeight) {
+        const scale = naturalHeight / finalH;
+        finalH = naturalHeight;
+        finalW = Math.round(finalW * scale);
+        console.log('[CropSettings.js handleAspectRatioChange] Scaled down H due to naturalHeight, new W:', { finalW, finalH });
+    }
     
-    setCropX(finalX < 0 ? 0 : finalX);
-    setCropY(finalY < 0 ? 0 : finalY);
-    setCropW(targetW);
-    setCropH(targetH);
+    finalW = Math.max(MIN_CROP_DIMENSION, Math.round(finalW));
+    finalH = Math.max(MIN_CROP_DIMENSION, Math.round(finalH));
+
+    console.log('[CropSettings.js handleAspectRatioChange] Final W/H after min/max checks:', { finalW, finalH });
+    // Ensure final dimensions are not greater than natural dimensions after all adjustments
+    finalW = Math.min(finalW, naturalWidth);
+    finalH = Math.min(finalH, naturalHeight);
+
+    const newX = Math.round((naturalWidth - finalW) / 2);
+    const newY = Math.round((naturalHeight - finalH) / 2);
+
+    console.log('[CropSettings.js handleAspectRatioChange] Setting crop states:', { newX, newY, finalW, finalH });
+    setCropX(Math.max(0, newX));
+    setCropY(Math.max(0, newY));
+    setCropW(finalW);
+    setCropH(finalH);
+    // isProgrammaticRatioChangeRef will be reset by the cropH useEffect
   };
 
 
@@ -231,7 +280,7 @@ function CropSettings({
         {showVisualCropper ? "Hide Visual Cropper & Use Numerical Inputs" : "Visually Select Crop Area"}
       </Button>
 
-      {!showVisualCropper && ( // Only show numerical inputs if visual cropper is hidden
+      {!showVisualCropper && (
         <>
           <FormControl mb={6} id="aspect-ratio-control">
             <FormLabel htmlFor="aspectRatioSelect" color={labelColor}>Aspect Ratio</FormLabel>
@@ -254,7 +303,7 @@ function CropSettings({
              {(naturalWidth > 0 && naturalHeight > 0) && (
                  <Text as="span" fontWeight="semibold"> Video dimensions: {naturalWidth}x{naturalHeight}px.</Text>
              )}
-             {!naturalWidth || !naturalHeight && (
+             {(!naturalWidth || !naturalHeight) && ( // Fixed condition
                   <Text as="span" fontStyle="italic"> (Video dimensions not available)</Text>
              )}
           </Text>
@@ -263,16 +312,22 @@ function CropSettings({
               <FormLabel htmlFor="cropX" color={labelColor}>X</FormLabel>
               <NumberInput
                 id="cropX"
-                value={cropX ?? ''} // Use ?? '' to display empty string for null
+                value={cropX ?? ''}
                 min={0}
-                 max={naturalWidth > 0 ? naturalWidth - (Number(cropW) > 0 ? Number(cropW) : 0) : undefined} // Dynamic max based on width
-                onChange={(valueString, valueAsNumber) => setCropX(valueString === '' ? null : valueAsNumber)}
+                max={naturalWidth > 0 && (cropW ?? 0) >= MIN_CROP_DIMENSION ? Math.max(0, naturalWidth - (cropW ?? MIN_CROP_DIMENSION)) : Math.max(0, naturalWidth - MIN_CROP_DIMENSION)}
+                onChange={(valueString, valueAsNumber) => {
+                    lastEditedDimension.current = 'x'; // Or not needed if not maintaining AR from X/Y edits
+                    setCropX(valueString === '' ? null : valueAsNumber);
+                }}
                 placeholder="0"
                 focusBorderColor="blue.500"
-                allowMouseWheel
-                 isDisabled={!naturalWidth || !naturalHeight || isProcessing} // Disable if no video or processing
+                 isDisabled={!naturalWidth || !naturalHeight || isProcessing || (selectedAspectRatioKey && selectedAspectRatioKey !== 'custom')}
               >
                 <NumberInputField />
+                <NumberInputStepper>
+                  <NumberIncrementStepper />
+                  <NumberDecrementStepper />
+                </NumberInputStepper>
               </NumberInput>
               {errors.x && <FormErrorMessage>{errors.x}</FormErrorMessage>}
             </FormControl>
@@ -280,16 +335,22 @@ function CropSettings({
               <FormLabel htmlFor="cropY" color={labelColor}>Y</FormLabel>
               <NumberInput
                 id="cropY"
-                value={cropY ?? ''} // Use ?? '' to display empty string for null
+                value={cropY ?? ''}
                 min={0}
-                 max={naturalHeight > 0 ? naturalHeight - (Number(cropH) > 0 ? Number(cropH) : 0) : undefined} // Dynamic max based on height
-                onChange={(valueString, valueAsNumber) => setCropY(valueString === '' ? null : valueAsNumber)}
+                max={naturalHeight > 0 && (cropH ?? 0) >= MIN_CROP_DIMENSION ? Math.max(0, naturalHeight - (cropH ?? MIN_CROP_DIMENSION)) : Math.max(0, naturalHeight - MIN_CROP_DIMENSION)}
+                onChange={(valueString, valueAsNumber) => {
+                    lastEditedDimension.current = 'y';
+                    setCropY(valueString === '' ? null : valueAsNumber);
+                }}
                 placeholder="0"
                 focusBorderColor="blue.500"
-                allowMouseWheel
-                 isDisabled={!naturalWidth || !naturalHeight || isProcessing} // Disable if no video or processing
+                 isDisabled={!naturalWidth || !naturalHeight || isProcessing || (selectedAspectRatioKey && selectedAspectRatioKey !== 'custom')}
               >
                 <NumberInputField />
+                <NumberInputStepper>
+                  <NumberIncrementStepper />
+                  <NumberDecrementStepper />
+                </NumberInputStepper>
               </NumberInput>
               {errors.y && <FormErrorMessage>{errors.y}</FormErrorMessage>}
             </FormControl>
@@ -297,16 +358,26 @@ function CropSettings({
               <FormLabel htmlFor="cropW" color={labelColor}>Width</FormLabel>
               <NumberInput
                 id="cropW"
-                value={cropW ?? ''} // Use ?? '' to display empty string for null
-                min={1} // Width should be at least 1
-                 max={naturalWidth > 0 ? naturalWidth - (Number(cropX) > 0 ? Number(cropX) : 0) : undefined} // Dynamic max based on X
-                onChange={(valueString, valueAsNumber) => setCropW(valueString === '' ? null : valueAsNumber)}
+                value={cropW ?? ''}
+                min={MIN_CROP_DIMENSION} 
+                max={naturalWidth > 0 && (cropX ?? 0) >= 0 ? Math.max(MIN_CROP_DIMENSION, naturalWidth - (cropX ?? 0)) : naturalWidth}
+                onChange={(valueString, valueAsNumber) => {
+                    if (selectedAspectRatioKey !== 'custom' && selectedAspectRatioKey !== 'original') {
+                        lastEditedDimension.current = 'width';
+                    } else {
+                        lastEditedDimension.current = null;
+                    }
+                    setCropW(valueString === '' ? null : valueAsNumber);
+                }}
                 placeholder="e.g., 640"
                 focusBorderColor="blue.500"
-                allowMouseWheel
-                 isDisabled={!naturalWidth || !naturalHeight || isProcessing} // Disable if no video or processing
+                 isDisabled={!naturalWidth || !naturalHeight || isProcessing}
               >
                 <NumberInputField />
+                <NumberInputStepper>
+                  <NumberIncrementStepper />
+                  <NumberDecrementStepper />
+                </NumberInputStepper>
               </NumberInput>
               {errors.w && <FormErrorMessage>{errors.w}</FormErrorMessage>}
             </FormControl>
@@ -314,16 +385,26 @@ function CropSettings({
               <FormLabel htmlFor="cropH" color={labelColor}>Height</FormLabel>
               <NumberInput
                 id="cropH"
-                value={cropH ?? ''} // Use ?? '' to display empty string for null
-                min={1} // Height should be at least 1
-                 max={naturalHeight > 0 ? naturalHeight - (Number(cropY) > 0 ? Number(cropY) : 0) : undefined} // Dynamic max based on Y
-                onChange={(valueString, valueAsNumber) => setCropH(valueString === '' ? null : valueAsNumber)}
+                value={cropH ?? ''}
+                min={MIN_CROP_DIMENSION} 
+                max={naturalHeight > 0 && (cropY ?? 0) >= 0 ? Math.max(MIN_CROP_DIMENSION, naturalHeight - (cropY ?? 0)) : naturalHeight}
+                onChange={(valueString, valueAsNumber) => {
+                    if (selectedAspectRatioKey !== 'custom' && selectedAspectRatioKey !== 'original') {
+                        lastEditedDimension.current = 'height';
+                    } else {
+                        lastEditedDimension.current = null;
+                    }
+                    setCropH(valueString === '' ? null : valueAsNumber);
+                }}
                 placeholder="e.g., 480"
                 focusBorderColor="blue.500"
-                allowMouseWheel
-                 isDisabled={!naturalWidth || !naturalHeight || isProcessing} // Disable if no video or processing
+                 isDisabled={!naturalWidth || !naturalHeight || isProcessing}
               >
                 <NumberInputField />
+                <NumberInputStepper>
+                  <NumberIncrementStepper />
+                  <NumberDecrementStepper />
+                </NumberInputStepper>
               </NumberInput>
               {errors.h && <FormErrorMessage>{errors.h}</FormErrorMessage>}
             </FormControl>

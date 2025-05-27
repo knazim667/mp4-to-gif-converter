@@ -39,6 +39,7 @@ function ConversionSettingsOrchestrator({
   isProcessing,
   cropX, setCropX,
   cropY, setCropY,
+  selectedAspectRatioKey, setSelectedAspectRatioKey, // Added props for aspect ratio
   cropW, setCropW,
   cropH, setCropH,
   textOverlay, setTextOverlay,
@@ -128,6 +129,8 @@ function ConversionSettingsOrchestrator({
               cropY={cropY} setCropY={setCropY}
               cropW={cropW} setCropW={setCropW}
               cropH={cropH} setCropH={setCropH}
+              selectedAspectRatioKey={selectedAspectRatioKey} // Pass down
+              setSelectedAspectRatioKey={setSelectedAspectRatioKey} // Pass down
             />
           </TabPanel>
           <TabPanel p={{ base: 2, md: 0 }}>
