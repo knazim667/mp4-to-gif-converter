@@ -632,11 +632,11 @@ function Upload() {
 
   // Log changes to critical crop states
   useEffect(() => {
-    console.log('[Upload.js] Crop state changed: ', { cropX, cropY, cropW, cropH });
+
   }, [cropX, cropY, cropW, cropH]);
 
   useEffect(() => {
-    console.log('[Upload.js] selectedAspectRatioKey changed: ', selectedAspectRatioKey);
+    
   }, [selectedAspectRatioKey]);
 
   // Helper to get coordinates from mouse or touch events

@@ -63,7 +63,7 @@ function CropSettings({
   const naturalHeight = videoPreviewDimensions?.naturalHeight || 0;
 
   useEffect(() => {
-    console.log('[CropSettings.js] Props received:', { cropX, cropY, cropW, cropH, selectedAspectRatioKey, naturalWidth, naturalHeight });
+    // console.log('[CropSettings.js] Props received:', { cropX, cropY, cropW, cropH, selectedAspectRatioKey, naturalWidth, naturalHeight });
   }, [cropX, cropY, cropW, cropH, selectedAspectRatioKey, naturalWidth, naturalHeight]);
 
 
@@ -168,12 +168,12 @@ function CropSettings({
 
   const handleAspectRatioChange = (event) => {
     const newKey = event.target.value;
-    console.log('[CropSettings.js handleAspectRatioChange] New AR Key selected:', newKey);
+    // console.log('[CropSettings.js handleAspectRatioChange] New AR Key selected:', newKey);
     setSelectedAspectRatioKey(newKey); // This now calls the prop function from Upload.js
     lastEditedDimension.current = null; 
 
     if (naturalWidth <= 0 || naturalHeight <= 0) return;
-    console.log('[CropSettings.js handleAspectRatioChange] Natural Dims:', { naturalWidth, naturalHeight });
+    // console.log('[CropSettings.js handleAspectRatioChange] Natural Dims:', { naturalWidth, naturalHeight });
 
     isProgrammaticRatioChangeRef.current = true; // Signal programmatic change
 
@@ -181,7 +181,7 @@ function CropSettings({
         // For custom, we don't auto-set crop. User defines it.
         // Resetting the flag is important if effects were skipped.
         // The cropH effect will reset it. If it doesn't run (e.g. no video yet),
-        console.log('[CropSettings.js handleAspectRatioChange] AR set to Custom.');
+        // console.log('[CropSettings.js handleAspectRatioChange] AR set to Custom.');
         // we might need to ensure it's false.
         // However, the effects will run due to setSelectedAspectRatioKey,
         // and the cropH effect will reset the flag.
@@ -189,7 +189,7 @@ function CropSettings({
     }
 
     if (newKey === 'original') {
-      console.log('[CropSettings.js handleAspectRatioChange] AR set to Original. Setting full dimensions.');
+      // console.log('[CropSettings.js handleAspectRatioChange] AR set to Original. Setting full dimensions.');
       setCropX(0);
       setCropY(0);
       setCropW(naturalWidth);
@@ -200,7 +200,7 @@ function CropSettings({
 
     const targetRatio = parseFloat(newKey);
     if (isNaN(targetRatio) || targetRatio <= 0) {
-        console.warn('[CropSettings.js handleAspectRatioChange] Invalid targetRatio:', newKey);
+        // console.warn('[CropSettings.js handleAspectRatioChange] Invalid targetRatio:', newKey);
         // Invalid ratio, reset flag if necessary (cropH effect will handle it)
         return;
     }
@@ -208,11 +208,11 @@ function CropSettings({
     let newW, newH;
 
     if ((naturalWidth / naturalHeight) > targetRatio) {
-      console.log('[CropSettings.js handleAspectRatioChange] Video is wider than target AR. Height is constraint.');
+      // console.log('[CropSettings.js handleAspectRatioChange] Video is wider than target AR. Height is constraint.');
       newH = naturalHeight;
       newW = Math.round(newH * targetRatio);
     } else {
-      console.log('[CropSettings.js handleAspectRatioChange] Video is taller/same AR as target. Width is constraint.');
+      // console.log('[CropSettings.js handleAspectRatioChange] Video is taller/same AR as target. Width is constraint.');
       newW = naturalWidth;
       newH = Math.round(newW / targetRatio);
     }
@@ -220,36 +220,36 @@ function CropSettings({
     let finalW = newW;
     let finalH = newH;
 
-    console.log('[CropSettings.js handleAspectRatioChange] Initial calculated W/H:', { finalW, finalH });
+    // console.log('[CropSettings.js handleAspectRatioChange] Initial calculated W/H:', { finalW, finalH });
 
     if (finalW < MIN_CROP_DIMENSION) {
         finalW = MIN_CROP_DIMENSION;
         finalH = Math.round(finalW / targetRatio);
-        console.log('[CropSettings.js handleAspectRatioChange] Adjusted W to min, new H:', { finalW, finalH });
+        // console.log('[CropSettings.js handleAspectRatioChange] Adjusted W to min, new H:', { finalW, finalH });
     }
     if (finalH < MIN_CROP_DIMENSION) {
         finalH = MIN_CROP_DIMENSION;
         finalW = Math.round(finalH * targetRatio);
-        console.log('[CropSettings.js handleAspectRatioChange] Adjusted H to min, new W:', { finalW, finalH });
+        // console.log('[CropSettings.js handleAspectRatioChange] Adjusted H to min, new W:', { finalW, finalH });
     }
 
     if (finalW > naturalWidth) {
         const scale = naturalWidth / finalW;
         finalW = naturalWidth;
         finalH = Math.round(finalH * scale);
-        console.log('[CropSettings.js handleAspectRatioChange] Scaled down W due to naturalWidth, new H:', { finalW, finalH });
+        // console.log('[CropSettings.js handleAspectRatioChange] Scaled down W due to naturalWidth, new H:', { finalW, finalH });
     }
     if (finalH > naturalHeight) {
         const scale = naturalHeight / finalH;
         finalH = naturalHeight;
         finalW = Math.round(finalW * scale);
-        console.log('[CropSettings.js handleAspectRatioChange] Scaled down H due to naturalHeight, new W:', { finalW, finalH });
+        // console.log('[CropSettings.js handleAspectRatioChange] Scaled down H due to naturalHeight, new W:', { finalW, finalH });
     }
     
     finalW = Math.max(MIN_CROP_DIMENSION, Math.round(finalW));
     finalH = Math.max(MIN_CROP_DIMENSION, Math.round(finalH));
 
-    console.log('[CropSettings.js handleAspectRatioChange] Final W/H after min/max checks:', { finalW, finalH });
+    // console.log('[CropSettings.js handleAspectRatioChange] Final W/H after min/max checks:', { finalW, finalH });
     // Ensure final dimensions are not greater than natural dimensions after all adjustments
     finalW = Math.min(finalW, naturalWidth);
     finalH = Math.min(finalH, naturalHeight);
@@ -257,7 +257,7 @@ function CropSettings({
     const newX = Math.round((naturalWidth - finalW) / 2);
     const newY = Math.round((naturalHeight - finalH) / 2);
 
-    console.log('[CropSettings.js handleAspectRatioChange] Setting crop states:', { newX, newY, finalW, finalH });
+    // console.log('[CropSettings.js handleAspectRatioChange] Setting crop states:', { newX, newY, finalW, finalH });
     setCropX(Math.max(0, newX));
     setCropY(Math.max(0, newY));
     setCropW(finalW);
