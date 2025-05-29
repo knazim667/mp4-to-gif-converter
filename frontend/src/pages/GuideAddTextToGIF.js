@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Heading, Text, VStack, OrderedList, ListItem, Code, useColorModeValue, UnorderedList } from '@chakra-ui/react';
+import { Box, Heading, Text, VStack, OrderedList, ListItem, Code, useColorModeValue, UnorderedList, Container } from '@chakra-ui/react';
 import { Helmet } from 'react-helmet-async';
 
 function GuideAddTextToGIF() {
@@ -7,10 +7,29 @@ function GuideAddTextToGIF() {
   const textColor = useColorModeValue('gray.600', 'gray.300');
 
   return (
-    <Box p={{ base: 4, md: 8 }} maxW="container.lg" mx="auto">
+    <Container maxW="container.lg" py={{ base: 6, md: 12 }}>
       <Helmet>
+        {/* Primary Meta Tags */}
         <title>How to Add Text to GIFs - EasyGIFMaker.com Guide</title>
         <meta name="description" content="Learn how to easily add and customize text overlays on your animated GIFs using EasyGIFMaker.com's powerful online editor." />
+        <meta name="keywords" content="add text to gif, text overlay gif, customize gif text, gif editor guide, online gif text" />
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="article" />
+        <meta property="og:url" content="https://www.easygifmaker.com/guides/adding-text-to-gifs" /> {/* Replace with your actual domain */}
+        <meta property="og:title" content="How to Add Text to GIFs - EasyGIFMaker.com Guide" />
+        <meta property="og:description" content="A step-by-step guide on adding and styling text on your animated GIFs with EasyGIFMaker.com." />
+        {/* <meta property="og:image" content="https://www.easygifmaker.com/og-image-guide-addtext.jpg" /> */} {/* Optional: Add a specific OG image */}
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content="https://www.easygifmaker.com/guides/adding-text-to-gifs" /> {/* Replace with your actual domain */}
+        <meta name="twitter:title" content="Guide: Adding Text to Your GIFs with EasyGIFMaker" />
+        <meta name="twitter:description" content="Learn to add custom text overlays to your GIFs easily and for free online." />
+        {/* <meta name="twitter:image" content="https://www.easygifmaker.com/twitter-image-guide-addtext.jpg" /> */} {/* Optional: Add a specific Twitter image */}
+
+        {/* Canonical Tag */}
+        <link rel="canonical" href="https://www.easygifmaker.com/guides/adding-text-to-gifs" /> {/* Replace with your actual domain */}
       </Helmet>
       <VStack spacing={6} align="stretch">
         <Heading as="h1" size={{ base: 'lg', md: 'xl' }} textAlign="center" color={headingColor}>
@@ -54,7 +73,7 @@ function GuideAddTextToGIF() {
           Experiment with different styles and positions to make your text stand out!
         </Text>
       </VStack>
-    </Box>
+    </Container>
   );
 }
 

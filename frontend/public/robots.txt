@@ -1,11 +1,8 @@
-# robots.txt for EasyGIFMaker.com
-
+# /Users/abbaskhan/Documents/mp4-to-gif-converter/frontend/public/robots.txt
 User-agent: *
 Allow: /
 
-# Disallow specific paths if you have any (examples):
-# Disallow: /admin/
-# Disallow: /temp-files/
-# Disallow: /search?query=* # If your search results pages are not valuable for SEO
+# Disallow backend paths if they were somehow accessible via the frontend domain (unlikely for separate deployments)
+# Disallow: /backend/ # Example, adjust if needed, usually not necessary for SPA + separate API
 
-Sitemap: https://www.easygifmaker.com/sitemap.xml
+Sitemap: https://www.easygifmaker.com/sitemap.xml # Replace with your actual domain

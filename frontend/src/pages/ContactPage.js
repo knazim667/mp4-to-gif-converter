@@ -59,8 +59,27 @@ function ContactPage() {
   return (
     <Box p={{ base: 4, md: 8 }} maxW="container.md" mx="auto">
       <Helmet>
-        <title>Contact Us - EasyGIFMaker.com</title>
-        <meta name="description" content="Get in touch with the EasyGIFMaker.com team. We'd love to hear your feedback, questions, or suggestions." />
+        {/* Primary Meta Tags */}
+        <title>Contact Us - EasyGIFMaker.com | Get Support & Feedback</title>
+        <meta name="description" content="Contact the EasyGIFMaker.com team for support, feedback, or inquiries. We're here to help with your MP4 to GIF conversion needs." />
+        <meta name="keywords" content="contact easygifmaker, support video converter, gif maker feedback, report issue video tool" />
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://www.easygifmaker.com/contact" /> {/* Replace with your actual domain */}
+        <meta property="og:title" content="Contact Us - EasyGIFMaker.com" />
+        <meta property="og:description" content="Have questions or feedback about our MP4 to GIF converter? Get in touch with the EasyGIFMaker.com team." />
+        <meta property="og:image" content="https://www.easygifmaker.com/og-image-contact.jpg" /> {/* Replace with a relevant OG image */}
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary" /> {/* summary might be better if no prominent image for contact page */}
+        <meta name="twitter:url" content="https://www.easygifmaker.com/contact" /> {/* Replace with your actual domain */}
+        <meta name="twitter:title" content="Contact EasyGIFMaker.com" />
+        <meta name="twitter:description" content="Reach out to us for support or feedback on our free online video to GIF tool." />
+        {/* <meta name="twitter:image" content="https://www.easygifmaker.com/twitter-image-contact.jpg" /> Optional, if you have one */}
+
+        {/* Canonical Tag */}
+        <link rel="canonical" href="https://www.easygifmaker.com/contact" /> {/* Replace with your actual domain */}
       </Helmet>
       <Heading as="h1" size={{ base: 'lg', md: 'xl' }} textAlign="center" mb={{ base: 6, md: 10 }} color={headingColor}>
         Contact Us

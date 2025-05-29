@@ -34,6 +34,8 @@ function Footer() {
         <ChakraLink as={RouterLink} to="/contact" p={1}>Contact</ChakraLink>
         <ChakraLink as={RouterLink} to="/help/faq" p={1}>Help/FAQ</ChakraLink>
         <ChakraLink as={RouterLink} to="/privacy-policy" p={1}>Privacy Policy</ChakraLink>
+        <ChakraLink as={RouterLink} to="/guides/how-to-convert-mp4-to-gif" p={1}>MP4 to GIF Guide</ChakraLink>
+        <ChakraLink as={RouterLink} to="/guides/adding-text-to-gifs" p={1}>Add Text to GIF Guide</ChakraLink>
       </Stack>
     </Box>
   );

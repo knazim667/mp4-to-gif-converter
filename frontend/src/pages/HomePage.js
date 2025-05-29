@@ -4,7 +4,7 @@ import {
   List, ListItem, ListIcon, Divider, Link as ChakraLink
 } from '@chakra-ui/react';
 import Upload from '../components/Upload'; // Your main upload component
-import { FiUpload, FiCrop, FiType, FiSettings, FiSmile } from 'react-icons/fi'; // Icons for the feature list
+import { FiUpload, FiCrop, FiType, FiSettings, FiSmile, FiZap, FiFilm, FiMessageSquare } from 'react-icons/fi'; // Added more icons
 import { Helmet } from 'react-helmet-async'; // For setting page title and meta description
 
 function HomePage() {
@@ -18,8 +18,53 @@ function HomePage() {
   return (
     <Box bg={pageBg} flexGrow={1}> {/* Ensure it takes up space */}
       <Helmet>
-        <title>EasyGIFMaker: Free Online MP4 to GIF Converter & Editor</title>
-        <meta name="description" content="Easily convert MP4s, YouTube videos, and more to high-quality animated GIFs with EasyGIFMaker.com. Free online tool with trimming, text overlay, cropping, speed adjustment, and reverse effects." />
+        {/* Primary Meta Tags */}
+        <title>MP4 to GIF Converter Online – Trim, Crop, Convert & Customize</title>
+        <meta name="description" content="Convert MP4 videos and YouTube links into high-quality GIFs or short MP4 clips. Trim, crop, overlay text, and customize easily with our free online converter." />
+        <meta name="keywords" content="mp4 to gif, video to gif, convert mp4 online, crop video online, youtube to gif, trim mp4, gif editor online, add text to gif, reverse video, short clip converter" />
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://www.easygifmaker.com/" /> {/* Replace with your actual domain */}
+        <meta property="og:title" content="MP4 to GIF & Short Video Converter Online" />
+        <meta property="og:description" content="Free online tool to convert, trim, crop, and edit MP4 or YouTube videos into GIFs and short clips. No watermark." />
+        <meta property="og:image" content="https://www.easygifmaker.com/og-image.jpg" /> {/* Replace with your actual OG image URL */}
+        <meta property="og:site_name" content="EasyGIFMaker.com" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content="https://www.easygifmaker.com/" /> {/* Replace with your actual domain */}
+        <meta name="twitter:title" content="Convert MP4 to GIF or Short Clip Online" />
+        <meta name="twitter:description" content="Trim, crop, and add text to videos. Create custom GIFs and clips for free!" />
+        <meta name="twitter:image" content="https://www.easygifmaker.com/twitter-image.jpg" /> {/* Replace with your actual Twitter image URL */}
+        {/* <meta name="twitter:site" content="@YourTwitterHandle" /> */} {/* Optional: Add your Twitter handle */}
+
+        {/* Canonical Tag */}
+        <link rel="canonical" href="https://www.easygifmaker.com/" /> {/* Replace with your actual domain */}
+
+        {/* Structured Data (JSON-LD) */}
+        <script type="application/ld+json">
+          {`
+            {
+              "@context": "https://schema.org",
+              "@type": "WebApplication",
+              "name": "EasyGIFMaker.com - MP4 to GIF Converter",
+              "url": "https://www.easygifmaker.com/",
+              "applicationCategory": "MultimediaApplication",
+              "operatingSystem": "All (Web-based)",
+              "offers": {
+                "@type": "Offer",
+                "price": "0.00",
+                "priceCurrency": "USD"
+              },
+              "description": "Convert MP4 and YouTube videos into GIFs or short MP4 clips. Trim, crop, reverse, and add overlays with our free online tool.",
+              "publisher": {
+                "@type": "Organization",
+                "name": "EasyGIFMaker.com"
+              }
+            }
+          `}
+        </script>
       </Helmet>
       <VStack spacing={4} mb={{ base: 6, md: 8 }} pt={{ base: 4, md: 8 }}> {/* Added pt to give some space from top if no navbar */}
         <Heading as="h1" size={{ base: 'xl', md: '2xl' }} color={headingColor} textAlign="center">
