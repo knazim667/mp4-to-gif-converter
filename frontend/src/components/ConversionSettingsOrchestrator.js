@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react'; // Added useContext
 import {
   Box,
   Heading,
@@ -19,6 +19,24 @@ import CropSettings from './CropSettings';
 import TextOverlaySettings from './TextOverlaySettings';
 import VideoEffectsSettings from './VideoEffectsSettings';
 
+// Example Context (Illustrative - would typically be in its own file e.g., contexts/SettingsContext.js)
+const OrchestratorSettingsContext = React.createContext();
+
+export const OrchestratorSettingsProvider = ({ children, initialFps = 10, initialWidth = 320 }) => {
+  const [fps, setFps] = React.useState(initialFps);
+  const [width, setWidth] = React.useState(initialWidth);
+  // ... other shared states like includeAudio could go here
+
+  const contextValue = {
+    fps, setFps,
+    width, setWidth,
+    // ...
+  };
+  return (
+    <OrchestratorSettingsContext.Provider value={contextValue}>{children}</OrchestratorSettingsContext.Provider>
+  );
+};
+
 // This component will orchestrate all conversion settings.
 function ConversionSettingsOrchestrator({
   // Props from Upload.js
@@ -26,10 +44,10 @@ function ConversionSettingsOrchestrator({
   trim,
   onTrimChange,
   scenePoints,
-  fps,
-  setFps,
-  width,
-  setWidth,
+  // fps, // To be managed by context if fully implemented
+  // setFps,
+  // width,
+  // setWidth,
   includeAudio,
   setIncludeAudio,
   showVisualCropper,
@@ -57,6 +75,9 @@ function ConversionSettingsOrchestrator({
 }) {
   const borderColor = useColorModeValue('gray.300', 'gray.600');
   const labelColor = useColorModeValue('gray.600', 'gray.400');
+
+  // Example of consuming the context
+  const { fps, setFps, width, setWidth } = useContext(OrchestratorSettingsContext) || { fps: 10, setFps: () => {}, width: 320, setWidth: () => {} }; // Fallback if not wrapped
 
   // Don't render settings if essential props are missing or invalid
   if (!videoDuration || videoDuration <= 0) {

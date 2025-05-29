@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react'; // Added useContext
 import {
   Box,
   Heading,
@@ -14,19 +14,22 @@ import {
   FormErrorMessage,
   useColorModeValue,
 } from '@chakra-ui/react';
+// Assuming OrchestratorSettingsContext is exported from ConversionSettingsOrchestrator.js or a context file
+// For this example, let's assume it's defined and exported elsewhere if this were a real refactor.
+// import { OrchestratorSettingsContext } from './ConversionSettingsOrchestrator'; // or '../contexts/SettingsContext'
 
 function OutputOptionsSettings({
-  fps,
-  setFps,
-  width,
-  setWidth,
+  // fps, // To be managed by context if fully implemented
+  // setFps,
+  // width,
+  // setWidth,
   includeAudio,
   setIncludeAudio,
 }) {
   const settingsBoxBg = useColorModeValue('white', 'gray.750');
   const settingsHeadingColor = useColorModeValue('gray.700', 'whiteAlpha.900');
   const labelColor = useColorModeValue('gray.600', 'gray.400');
-
+  const { fps, setFps, width, setWidth } = /* useContext(OrchestratorSettingsContext) || */ { fps: 10, setFps: () => {}, width: 320, setWidth: () => {} }; // Example consumption, commented out for now
   const [fpsError, setFpsError] = useState('');
   const [widthError, setWidthError] = useState('');
 

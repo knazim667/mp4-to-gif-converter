@@ -11,6 +11,7 @@ import {
   Divider,
   Icon,
   useColorModeValue,
+  useToast, // Import useToast for feedback
 } from '@chakra-ui/react';
 import { FiUploadCloud } from 'react-icons/fi';
 
@@ -33,6 +34,25 @@ function FileUploadZone({
   const dropZoneInitialBg = useColorModeValue('gray.50', 'gray.700');
   const selectedFileNameColor = useColorModeValue('blue.600', 'blue.300');
 
+  const toast = useToast(); // Initialize toast
+
+  const validateAndSetFile = (selectedFile) => {
+    if (!selectedFile) return;
+
+    const allowedTypes = ['video/mp4', 'video/avi', 'video/quicktime', 'video/webm', 'video/x-matroska', 'video/x-msvideo']; // Added video/x-msvideo for .avi
+    const maxFileSize = 100 * 1024 * 1024; // 100MB example limit
+
+    if (!allowedTypes.includes(selectedFile.type)) {
+      toast({ title: "Invalid File Type", description: "Please upload a valid video file (MP4, AVI, MOV, WEBM, MKV).", status: "error", duration: 5000, isClosable: true });
+      return;
+    }
+    if (selectedFile.size > maxFileSize) {
+      toast({ title: "File Too Large", description: `File size cannot exceed ${maxFileSize / (1024*1024)}MB.`, status: "error", duration: 5000, isClosable: true });
+      return;
+    }
+    onFileChange({ target: { files: [selectedFile] } }); // Simulate event structure if onFileChange expects it
+  };
+
   return (
     <VStack spacing={6} align="stretch" mb={8}>
       <Box
@@ -44,8 +64,14 @@ function FileUploadZone({
         p={{ base: 6, md: 10 }}
         textAlign="center"
         onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
-        onDrop={onDrop}
+        onDragLeave={onDragLeave} // Keep existing drag leave
+        onDrop={(e) => {
+          onDrop(e); // Call original onDrop to handle isDragging state
+          const droppedFile = e.dataTransfer.files?.[0];
+          if (droppedFile) {
+            validateAndSetFile(droppedFile);
+          }
+        }}
         _hover={{ borderColor: dropZoneHoverBorder, cursor: 'pointer' }}
         transition="all 0.3s ease-in-out"
         onClick={onBrowseClick}
@@ -63,7 +89,10 @@ function FileUploadZone({
         <Input
           type="file"
           accept=".mp4,.avi,.mov,.webm,.mkv"
-          onChange={onFileChange}
+          onChange={(e) => {
+            const selectedFile = e.target.files?.[0];
+            validateAndSetFile(selectedFile);
+          }}
           ref={fileInputRef}
           display="none"
           id="fileInput"

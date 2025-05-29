@@ -11,7 +11,7 @@ import {
 import { FiUploadCloud } from 'react-icons/fi';
 import FileUploadZone from './FileUploadZone';
 import OutputDisplay from './OutputDisplay';
-import ConversionSettingsOrchestrator from './ConversionSettingsOrchestrator';
+import ConversionSettingsOrchestrator, { OrchestratorSettingsProvider } from './ConversionSettingsOrchestrator'; // Import Provider
 
 function Upload() {
 
@@ -180,6 +180,8 @@ function Upload() {
     }
 
     resetStatesForNewVideo();
+    // Clear videoUrlInput if a file is selected
+    setVideoUrlInput(''); 
     setFile(selectedFile);
     const localVideoUrl = URL.createObjectURL(selectedFile);
     setVideoSrc(localVideoUrl); // Show local preview immediately
@@ -274,11 +276,16 @@ function Upload() {
       setMessage({ text: 'Please enter a video URL.', type: 'error' });
       return;
     }
-    resetStatesForNewVideo(); 
+    // Reset relevant states for a new URL processing, but preserve videoUrlInput for now
+    // Keep setVideoUrlInput('') out of resetStatesForNewVideo or call it selectively
+    const currentUrl = videoUrlInput; // Preserve the URL
+    resetStatesForNewVideo(); // This will clear videoUrlInput, so we restore it if needed or adjust resetStates
+    setVideoUrlInput(currentUrl); // Restore the URL that was just entered
+
     setMessage({ text: 'Processing URL...', type: 'info' });
     setIsAnalyzing(true); 
 
-    axios.post(`${apiUrl}/process-url`, { url: videoUrlInput })
+    axios.post(`${apiUrl}/process-url`, { url: currentUrl }) // Use the preserved URL
       .then(response => {
         if (response.data && response.data.filename) {
             setUploadedFilename(response.data.filename);
@@ -855,11 +862,11 @@ function Upload() {
         onVideoUrlInputChange={(e) => {
           setVideoUrlInput(e.target.value);
           if (e.target.value) {
+            // If user types a URL, clear any selected file
             setFile(null);
             if (fileInputRef.current) fileInputRef.current.value = '';
-             resetStatesForNewVideo(); // Reset all relevant states
           }
-        }}
+        }} // Removed resetStatesForNewVideo() from here
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -984,36 +991,38 @@ function Upload() {
 
 
       {uploadedFilename && videoDuration > 0 && (
-        <ConversionSettingsOrchestrator
-          videoDuration={videoDuration}
-          trim={trim}
-          onTrimChange={handleTrimChange}
-          scenePoints={scenePoints}
-          fps={fps} setFps={setFps}
-          width={width} setWidth={setWidth}
-          includeAudio={includeAudio} setIncludeAudio={setIncludeAudio}
-          showVisualCropper={showVisualCropper} setShowVisualCropper={setShowVisualCropper}
-          videoSrc={videoSrc}
-          videoPreviewDimensions={videoPreviewDimensions}
-          isProcessing={isProcessing}
-          cropX={cropX} setCropX={setCropX}
-          selectedAspectRatioKey={selectedAspectRatioKey} // Pass down
-          setSelectedAspectRatioKey={setSelectedAspectRatioKey} // Pass down
-          cropY={cropY} setCropY={setCropY}
-          cropW={cropW} setCropW={setCropW}
-          cropH={cropH} setCropH={setCropH}
-          textOverlay={textOverlay} setTextOverlay={setTextOverlay}
-          fontSize={fontSize} setFontSize={setFontSize}
-          fontStyle={fontStyle} setFontStyle={setFontStyle} fontStyleOptions={fontStyleOptions}
-          textColor={textColor} setTextColor={setTextColor}
-          textBgColor={textBgColor} setTextBgColor={setTextBgColor}
-          textPosition={textPosition} setTextPosition={setTextPosition}
-          speedFactor={speedFactor} setSpeedFactor={setSpeedFactor}
-          reverse={reverse} setReverse={setReverse}
-          presets={presets}
-          selectedPreset={selectedPreset}
-          onPresetChange={handlePresetChange}
-        />
+        <OrchestratorSettingsProvider initialFps={fps} initialWidth={width}> {/* Wrap with Provider */}
+          <ConversionSettingsOrchestrator
+            videoDuration={videoDuration}
+            trim={trim}
+            onTrimChange={handleTrimChange}
+            scenePoints={scenePoints}
+            // fps={fps} setFps={setFps} // Now from context
+            // width={width} setWidth={setWidth} // Now from context
+            includeAudio={includeAudio} setIncludeAudio={setIncludeAudio}
+            showVisualCropper={showVisualCropper} setShowVisualCropper={setShowVisualCropper}
+            videoSrc={videoSrc}
+            videoPreviewDimensions={videoPreviewDimensions}
+            isProcessing={isProcessing}
+            cropX={cropX} setCropX={setCropX}
+            selectedAspectRatioKey={selectedAspectRatioKey} 
+            setSelectedAspectRatioKey={setSelectedAspectRatioKey} 
+            cropY={cropY} setCropY={setCropY}
+            cropW={cropW} setCropW={setCropW}
+            cropH={cropH} setCropH={setCropH}
+            textOverlay={textOverlay} setTextOverlay={setTextOverlay}
+            fontSize={fontSize} setFontSize={setFontSize}
+            fontStyle={fontStyle} setFontStyle={setFontStyle} fontStyleOptions={fontStyleOptions}
+            textColor={textColor} setTextColor={setTextColor}
+            textBgColor={textBgColor} setTextBgColor={setTextBgColor}
+            textPosition={textPosition} setTextPosition={setTextPosition}
+            speedFactor={speedFactor} setSpeedFactor={setSpeedFactor}
+            reverse={reverse} setReverse={setReverse}
+            presets={presets}
+            selectedPreset={selectedPreset}
+            onPresetChange={handlePresetChange}
+          />
+        </OrchestratorSettingsProvider>
       )}
 
       {uploadedFilename && videoDuration > 0 && (

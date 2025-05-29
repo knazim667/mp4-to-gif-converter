@@ -123,6 +123,10 @@ function CropSettings({
 
   // Effect to apply aspect ratio when cropW is changed by user while AR is active
   useEffect(() => {
+    // This effect ensures that if a specific aspect ratio (not 'custom' or 'original') is selected,
+    // and the user manually changes the cropW (width), the cropH (height) is automatically
+    // adjusted to maintain the selected aspect ratio.
+    // `isProgrammaticRatioChangeRef.current` prevents this from running if the change to cropW was itself programmatic.
     // If change is from programmatic aspect ratio selection, skip this effect's adjustment
     if (isProgrammaticRatioChangeRef.current) return;
 
@@ -130,6 +134,8 @@ function CropSettings({
       if (lastEditedDimension.current === 'height') lastEditedDimension.current = null;
       return;
     }
+    // `lastEditedDimension.current` tracks which dimension (width or height) was last manually edited by the user.
+    // This prevents a feedback loop if, for example, width changes height, and then height tries to change width back.
     const ratio = parseFloat(selectedAspectRatioKey);
     if (cropW !== null && !isNaN(cropW) && Number(cropW) >= MIN_CROP_DIMENSION && !isNaN(ratio) && ratio > 0 && naturalHeight > 0) {
       const newH = Math.round(cropW / ratio);
@@ -143,6 +149,10 @@ function CropSettings({
 
   // Effect to apply aspect ratio when cropH is changed by user while AR is active
   useEffect(() => {
+    // Similar to the effect for cropW, this adjusts cropW if cropH is manually changed
+    // while a specific aspect ratio is active.
+    // `isProgrammaticRatioChangeRef.current` is reset here because this effect typically runs
+    // after the cropW effect in a programmatic aspect ratio change sequence, marking the end of that sequence.
     // If change is from programmatic aspect ratio selection, skip this effect's adjustment
     // and reset the flag as this is the second effect to run in the cycle.
     if (isProgrammaticRatioChangeRef.current) {
