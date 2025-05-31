@@ -245,9 +245,29 @@ mp4-to-gif-converter/
 │   │   └── index.html      # The main HTML file for the React application
 │   ├── src/source
 │   │   ├── components/
-│   │   │   ├── Upload.js       # Component for handling video uploads and conversion settings
-│   │   │   ├── VideoPlayer.js  # Component integrating the Video.js player for previews
-│   │   │   └── TrimSlider.js   # UI component for selecting start and end trim points
+│   │   │   ├── AppRoutes.js                    # Defines application page routes
+│   │   │   ├── ConversionSettingsOrchestrator.js # Manages tabs for different conversion settings
+│   │   │   ├── CropSettings.js                 # UI for numerical crop inputs and aspect ratio
+│   │   │   ├── FileUploadZone.js               # Component for video upload (drag & drop, browse, URL)
+│   │   │   ├── Footer.js                       # Application footer
+│   │   │   ├── Navbar.js                       # Application navigation bar
+│   │   │   ├── OutputDisplay.js                # Displays the converted GIF/MP4 and download link
+│   │   │   ├── OutputOptionsSettings.js        # UI for FPS, width, and audio inclusion
+│   │   │   ├── Settings.js                     # General settings component (if used, e.g. for app-wide settings)
+│   │   │   ├── TextOverlaySettings.js          # UI for adding and styling text overlays
+│   │   │   ├── TrimSettings.js                 # Container for the trim slider
+│   │   │   ├── TrimSlider.js                   # Dual slider for selecting trim start/end points
+│   │   │   ├── Upload.js                       # Main component orchestrating the entire conversion process
+│   │   │   ├── VideoEffectsSettings.js         # UI for speed factor and reverse options
+│   │   │   └── VideoPlayer.js                  # Integrates Video.js for video previews
+│   │   ├── pages/          # Top-level components representing application pages
+│   │   │   ├── HomePage.js                     # Main page with the converter interface
+│   │   │   ├── AboutPage.js                    # About the application
+│   │   │   ├── ContactPage.js                  # Contact form page
+│   │   │   ├── GuideAddTextToGIF.js            # Guide on how to add text to GIFs
+│   │   │   ├── GuideMP4ToGIF.js                # Guide on how to convert MP4 to GIF
+│   │   │   ├── HelpFAQPage.js                  # Help and Frequently Asked Questions page
+│   │   │   └── PrivacyPolicyPage.js            # Privacy Policy page
 │   │   ├── App.js            # The root component of the React application
 │   │   └── index.js          # The entry point for the React application
 │   ├── package.json        # Defines frontend dependencies and scripts
