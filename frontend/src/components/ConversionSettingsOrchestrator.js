@@ -48,11 +48,8 @@ function ConversionSettingsOrchestrator({
   // setFps,
   // width,
   // setWidth,
-  includeAudio,
-  setIncludeAudio,
-  showVisualCropper,
-  setShowVisualCropper,
-  videoSrc,
+  includeAudio, setIncludeAudio,
+  // Removed showVisualCropper, setShowVisualCropper, videoSrc (if only for visual cropper)
   videoPreviewDimensions,
   isProcessing,
   cropX, setCropX,
@@ -141,9 +138,7 @@ function ConversionSettingsOrchestrator({
           <TabPanel p={{ base: 2, md: 0 }}>
             {/* Pass props, handle potential null/undefined defensively in child components */}
             <CropSettings
-              showVisualCropper={showVisualCropper ?? false} // Default
-              setShowVisualCropper={setShowVisualCropper} // Assume is a function
-              videoSrc={videoSrc} // Can be null
+              // Removed showVisualCropper, setShowVisualCropper, videoSrc
               videoPreviewDimensions={videoPreviewDimensions || { width: 0, height: 0, naturalWidth: 0, naturalHeight: 0 }} // Default object
               isProcessing={isProcessing ?? false} // Default
               cropX={cropX} setCropX={setCropX} // Can be null, assume setters are functions

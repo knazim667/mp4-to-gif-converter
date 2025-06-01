@@ -10,8 +10,7 @@ import {
   NumberInputField,
   NumberInputStepper,
   NumberIncrementStepper,
-  NumberDecrementStepper,
-  Button,
+  NumberDecrementStepper,  
   Text,
   FormErrorMessage,
   Select,
@@ -19,10 +18,8 @@ import {
 } from '@chakra-ui/react';
 
 function CropSettings({
-  showVisualCropper,
-  setShowVisualCropper,
-  videoSrc,
   videoPreviewDimensions,
+  // Removed showVisualCropper, setShowVisualCropper, videoSrc
   isProcessing,
   cropX, setCropX,
   cropY, setCropY,
@@ -279,19 +276,9 @@ function CropSettings({
   return (
     <Box p={{ base: 4, md: 6 }} borderWidth="1px" borderRadius="lg" shadow="md" bg={settingsBoxBg} id="crop-section">
       <Heading as="h4" size={{ base: 'sm', md: 'md' }} mb={5} color={settingsHeadingColor}>Crop Video (Optional)</Heading>
-      
-      <Button
-        onClick={() => setShowVisualCropper(!showVisualCropper)}
-        colorScheme={showVisualCropper ? "orange" : "blue"}
-        mb={{ base: 3, md: 4 }}
-        isDisabled={!videoSrc || videoPreviewDimensions.naturalWidth === 0 || isProcessing}
-        w={{ base: 'full', md: 'auto' }}
-      >
-        {showVisualCropper ? "Hide Visual Cropper & Use Numerical Inputs" : "Visually Select Crop Area"}
-      </Button>
 
-      {!showVisualCropper && (
-        <>
+      {/* Visual Cropper toggle button removed. Numerical inputs are always shown. */}
+      <>
           <FormControl mb={6} id="aspect-ratio-control">
             <FormLabel htmlFor="aspectRatioSelect" color={labelColor}>Aspect Ratio</FormLabel>
             <Select
@@ -419,8 +406,7 @@ function CropSettings({
               {errors.h && <FormErrorMessage>{errors.h}</FormErrorMessage>}
             </FormControl>
           </SimpleGrid>
-        </>
-      )}
+      </>
 
     </Box>
   );
