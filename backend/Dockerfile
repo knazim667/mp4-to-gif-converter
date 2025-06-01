@@ -23,9 +23,10 @@ COPY . .
 
 # App Runner will set the PORT environment variable (default 8080)
 # Gunicorn will bind to 0.0.0.0 and this port.
-ENV PORT 8080
+ENV PORT=8080
 EXPOSE 8080
 
 # Command to run your application using Gunicorn
 # Ensure app:app matches your Flask app instance (app = Flask(__name__)) in app.py
-CMD ["gunicorn", "--bind", "0.0.0.0:${PORT}", "app:app"]
+# CMD ["gunicorn", "--bind", "0.0.0.0:${PORT}", "app:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:$PORT app:app"]
