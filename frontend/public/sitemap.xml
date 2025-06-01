@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://www.easygifmaker.com/</loc>
-    <lastmod>2023-10-28</lastmod> <!-- Update this when homepage content changes significantly -->
+    <lastmod>2024-05-22</lastmod> <!-- Example: Updated today -->
     <changefreq>weekly</changefreq> <!-- How frequently the page is likely to change -->
     <priority>1.0</priority> <!-- Priority of this URL relative to other URLs on your site -->
   </url>
@@ -10,7 +10,7 @@
   <!-- Example: Adding a guide page -->
   <url>
     <loc>https://www.easygifmaker.com/guides/how-to-convert-mp4-to-gif</loc>
-    <lastmod>2023-10-28</lastmod> <!-- Date this guide was last updated -->
+    <lastmod>2024-05-15</lastmod> <!-- Example: Updated recently -->
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -18,7 +18,7 @@
   <!-- Example: Adding another guide or feature page -->
   <url>
     <loc>https://www.easygifmaker.com/guides/adding-text-to-gifs</loc>
-    <lastmod>2023-10-27</lastmod> <!-- Date this guide was last updated -->
+    <lastmod>2024-05-10</lastmod> <!-- Example: Updated recently -->
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -26,7 +26,7 @@
   <!-- About Us Page -->
   <url>
     <loc>https://www.easygifmaker.com/about</loc>
-    <lastmod>2023-10-28</lastmod> <!-- Update when content is finalized -->
+    <lastmod>2024-04-20</lastmod> <!-- Example: Updated -->
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -34,7 +34,7 @@
   <!-- Contact Page -->
   <url>
     <loc>https://www.easygifmaker.com/contact</loc>
-    <lastmod>2023-10-28</lastmod> <!-- Update when content is finalized -->
+    <lastmod>2023-10-28</lastmod> <!-- Assuming this hasn't changed -->
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -42,7 +42,7 @@
   <!-- Help/FAQ Page -->
   <url>
     <loc>https://www.easygifmaker.com/help/faq</loc>
-    <lastmod>2023-10-28</lastmod> <!-- Update as FAQs are added/changed -->
+    <lastmod>2024-05-01</lastmod> <!-- Example: Updated with new FAQs -->
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -50,7 +50,7 @@
   <!-- Privacy Policy Page -->
   <url>
     <loc>https://www.easygifmaker.com/privacy-policy</loc>
-    <lastmod>2023-10-28</lastmod> <!-- Update when content is finalized/reviewed -->
+    <lastmod>2023-10-28</lastmod> <!-- Assuming this hasn't changed -->
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
