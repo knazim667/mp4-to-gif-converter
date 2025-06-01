@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, make_response # Added make_response for potential future use if needed
 from flask_cors import CORS
 import boto3
+from botocore.client import Config # Import Config
 import os
 import subprocess
 import requests
@@ -63,11 +64,14 @@ mail = Mail(app)
 
 # Initialize AWS S3 client
 try:
+    # Explicitly set the signature version to s3v4 (AWS4-HMAC-SHA256)
+    s3_config = Config(signature_version='s3v4')
     s3 = boto3.client(
         's3',
         aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
         aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-        region_name=os.getenv('AWS_REGION', 'us-east-1')
+        region_name=os.getenv('AWS_REGION'), # Ensure AWS_REGION is set in your environment
+        config=s3_config
     )
     S3_BUCKET_NAME = os.getenv('S3_BUCKET')
     if not S3_BUCKET_NAME:
@@ -324,10 +328,17 @@ def convert_file_route():
         s3.upload_file(local_temp_output_path, S3_BUCKET_NAME, s3_output_filename, ExtraArgs={'ContentType': content_type})
         logger.info(f"Uploaded {s3_output_filename} ({content_type}) to S3 bucket {S3_BUCKET_NAME}")
 
+        # Define a user-friendly download filename
+        download_filename = f"easygifmaker_output{output_extension}"
+
         presigned_output_url = s3.generate_presigned_url(
             'get_object',
-            Params={'Bucket': S3_BUCKET_NAME, 'Key': s3_output_filename},
-            ExpiresIn=3600 # 1 hour
+            Params={
+                'Bucket': S3_BUCKET_NAME,
+                'Key': s3_output_filename,
+                'ResponseContentDisposition': f'attachment; filename="{download_filename}"'
+            },
+            ExpiresIn=3600  # 1 hour
         )
         logger.info(f"Generated presigned URL for output: {s3_output_filename}")
 
