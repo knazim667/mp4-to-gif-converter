@@ -410,7 +410,6 @@ def home():
     return jsonify({'message': 'MP4 to GIF Converter API is running!'}), 200
 
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
-    # For production, you'd typically use a WSGI server like Gunicorn or Waitress
-    # and set debug=False.
+    # Fixed port configuration - use PORT from environment or default to 8080
+    port = int(os.getenv('PORT', 8080))  # Changed from 5000 to 8080
     app.run(debug=os.getenv('FLASK_DEBUG', 'False').lower() == 'true', host='0.0.0.0', port=port)
