@@ -22,4 +22,4 @@ ENV CLAMAV_ENABLED=false
 EXPOSE 8080
 
 # Use gunicorn for production
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "120", "app:app"]
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8080", "app:app"]

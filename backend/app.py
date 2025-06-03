@@ -68,8 +68,8 @@ try:
     s3_config = Config(signature_version='s3v4')
     s3 = boto3.client(
         's3',
-        aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+        # aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+        # aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
         region_name=os.getenv('AWS_REGION'), # Ensure AWS_REGION is set in your environment
         config=s3_config
     )
@@ -409,7 +409,12 @@ def handle_contact_form():
 def home():
     return jsonify({'message': 'MP4 to GIF Converter API is running!'}), 200
 
+@app.route('/health')
+def health_check():
+    return 'OK', 200
+
+
 if __name__ == '__main__':
-    # Fixed port configuration - use PORT from environment or default to 8080
-    port = int(os.getenv('PORT', 8080))  # Changed from 5000 to 8080
-    app.run(debug=os.getenv('FLASK_DEBUG', 'False').lower() == 'true', host='0.0.0.0', port=port)
+#     # Fixed port configuration - use PORT from environment or default to 8080
+#     # port = int(os.getenv('PORT', 8080))  # Changed from 5000 to 8080
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
