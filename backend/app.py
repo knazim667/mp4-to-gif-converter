@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, make_response # Added make_response for potential future use if needed
 from flask_cors import CORS
 import boto3
-# from botocore.client import Config # Import Config
+from botocore.client import Config # Import Config
 import os
 import subprocess
 import requests
@@ -62,20 +62,24 @@ app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
 
 mail = Mail(app)
 
-# S3 client initialization
-# boto3 will automatically use the IAM task role if running on ECS Fargate
-# and no explicit credentials are set in environment variables or code.
-# It will also pick up the region from AWS_REGION environment variable if set,
-# or from the EC2 instance metadata/ECS task metadata.
-S3_BUCKET_NAME = os.environ.get('S3_BUCKET')
-AWS_REGION = os.environ.get('AWS_REGION')
-
-if not S3_BUCKET_NAME:
-    raise ValueError("S3_BUCKET environment variable not set.")
-if not AWS_REGION:
-    raise ValueError("AWS_REGION environment variable not set.")
-
-s3 = boto3.client('s3', region_name=AWS_REGION)
+# Initialize AWS S3 client
+try:
+    # Explicitly set the signature version to s3v4 (AWS4-HMAC-SHA256)
+    s3_config = Config(signature_version='s3v4')
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+        region_name=os.getenv('AWS_REGION'), # Ensure AWS_REGION is set in your environment
+        config=s3_config
+    )
+    S3_BUCKET_NAME = os.getenv('S3_BUCKET')
+    if not S3_BUCKET_NAME:
+        logger.error("S3_BUCKET environment variable not set.")
+        raise ValueError("S3_BUCKET environment variable not set.")
+except Exception as e:
+    logger.error(f"Failed to initialize S3 client or get S3_BUCKET: {e}")
+    raise
 
 # Function to scan files with ClamAV
 def scan_file(file_path):
@@ -405,12 +409,9 @@ def handle_contact_form():
 def home():
     return jsonify({'message': 'MP4 to GIF Converter API is running!'}), 200
 
-@app.route('/health')
-def health_check():
-    return 'OK', 200
-
-
 if __name__ == '__main__':
-#     # Fixed port configuration - use PORT from environment or default to 8080
-#     # port = int(os.getenv('PORT', 8080))  # Changed from 5000 to 8080
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
+    port = int(os.getenv('PORT', 8080))
+    # For production, you'd typically use a WSGI server like Gunicorn or Waitress
+    # and set debug=False.
+    app.run(debug=os.getenv('FLASK_DEBUG', 'False').lower() == 'true', host='0.0.0.0', port=port)
+

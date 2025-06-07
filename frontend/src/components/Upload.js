@@ -405,8 +405,8 @@ function Upload() {
       filename: uploadedFilename,
       fps,
       width,
-      start_time: trim.start,
-      end_time: trim.end,
+      start: trim.start, // Changed from start_time
+      end: trim.end,     // Changed from end_time
       text: textOverlay || null,
       font_size: fontSize,
       text_position: textPosition,
@@ -457,6 +457,7 @@ function Upload() {
   };
 
   const handleTrimChange = useCallback(({ start, end }) => {
+    console.log('[Upload.js handleTrimChange] Trim updated:', { start, end });
     setTrim({ start, end });
   }, []); 
 

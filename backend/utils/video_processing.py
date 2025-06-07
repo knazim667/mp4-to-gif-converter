@@ -93,7 +93,7 @@ def process_video_output(
                 if start_time >= end_time:
                     logger.error(f"Start time ({start_time}s) must be less than end time ({end_time}s) for trimming.")
                     raise ValueError("Start time must be less than end time for trimming.")
-                processed_clip = processed_clip.subclip(start_time, end_time)
+                processed_clip = processed_clip.subclipped(start_time, end_time)
                 logger.info(f"Trimmed clip to start: {start_time:.2f}s, end: {end_time:.2f}s. New duration: {processed_clip.duration:.2f}s")
 
             # Apply crop if parameters are provided

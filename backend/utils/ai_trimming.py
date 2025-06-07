@@ -50,3 +50,4 @@ def detect_scenes(video_path, threshold=30.0):
        except Exception as e:
            logger.error(f"Scene detection failed: {e}")
            raise
+       

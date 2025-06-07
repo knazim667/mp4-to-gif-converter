@@ -9,6 +9,8 @@ import TrimSlider from './TrimSlider';
 
 function TrimSettings({
   videoDuration,
+  trimStart, // Added prop
+  trimEnd,   // Added prop
   onTrimChange,
   scenePoints,
 }) {
@@ -26,6 +28,8 @@ function TrimSettings({
       {safeVideoDuration > 0 ? (
            <TrimSlider
              duration={safeVideoDuration}
+             initialStart={trimStart} // Pass down
+             initialEnd={trimEnd}     // Pass down
              onTrimChange={onTrimChange} // Assume is a function
              scenes={scenePoints || []} // Default to empty array
            />

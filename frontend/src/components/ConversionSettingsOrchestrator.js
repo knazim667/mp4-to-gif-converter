@@ -120,6 +120,8 @@ function ConversionSettingsOrchestrator({
             {/* Pass props, handle potential null/undefined defensively in child components */}
             <TrimSettings
               videoDuration={videoDuration || 0} // Default to 0
+              trimStart={trim.start} // Pass current trim start
+              trimEnd={trim.end}     // Pass current trim end
               onTrimChange={onTrimChange} // Assume onTrimChange is always a function or check its type
               scenes={scenePoints || []} // Default to empty array
             />

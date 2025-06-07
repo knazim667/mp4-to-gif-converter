@@ -1,24 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Heading, FormControl, FormLabel, Slider, SliderTrack, SliderFilledTrack, SliderThumb, SliderMark, Text, useColorModeValue } from '@chakra-ui/react'; // Added useColorModeValue
 
-function TrimSlider({ duration, scenes = [], onTrimChange }) {
+function TrimSlider({ duration, scenes = [], onTrimChange, initialStart, initialEnd }) {
   // Ensure duration is a valid number, default to a small value if not, to avoid issues
   const safeDuration = typeof duration === 'number' && duration > 0 ? duration : 1; // Use 1s as a minimal duration
 
-  const [start, setStart] = useState(0);
-  const [end, setEnd] = useState(safeDuration); // Initialize end with safeDuration
+  // Initialize state based on props or defaults. useEffect will further refine this.
+  const [start, setStart] = useState(typeof initialStart === 'number' ? initialStart : 0);
+  const [end, setEnd] = useState(typeof initialEnd === 'number' ? initialEnd : safeDuration);
 
   const labelColor = useColorModeValue('gray.600', 'gray.400'); // Use color mode value for text
 
   useEffect(() => {
-    // When duration changes, update the end time, ensuring it doesn't go beyond the new duration
-    // Reset start to 0 and end to the new safeDuration.
-    const newStartValue = 0;
-    const newEndValue = safeDuration;
+    // This effect synchronizes the slider's internal state with the desired trim values
+    // derived from props (initialStart, initialEnd) and the current video duration (safeDuration).
+    // It runs when the video duration changes or when the parent component suggests new initial trim points.
+
+    const newStartValue = (typeof initialStart === 'number' && initialStart >= 0 && initialStart < safeDuration)
+      ? initialStart
+      : 0;
+    const newEndValue = (typeof initialEnd === 'number' && initialEnd > newStartValue && initialEnd <= safeDuration)
+      ? initialEnd
+      : safeDuration;
 
     setStart(newStartValue);
     setEnd(newEndValue);
-
     if (typeof onTrimChange === 'function') {
         onTrimChange({ start: newStartValue, end: newEndValue });
     }
