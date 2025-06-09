@@ -23,7 +23,7 @@ app = Flask(__name__)
 # It allows requests from the specified origins, with the specified methods and headers.
 # Flask-CORS should automatically handle OPTIONS preflight requests for routes that have 'OPTIONS' in their methods list.
 CORS(app,
-     origins=["http://localhost:3000", "http://192.168.12.238:3000", "http://easygifmaker.com", "https://easygifmaker.com"], # Add your production domain later
+     origins=["http://localhost:3000", "http://192.168.12.238:3000", "http://easygifmaker.com", "https://easygifmaker.com", "https://d15382nac20mnh.cloudfront.net"], # Add your production domain later
      methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
      allow_headers=["Content-Type", "Authorization"],
      supports_credentials=True # Often useful, especially if you plan to use cookies or auth headers
@@ -117,6 +117,7 @@ def download_file_from_url(video_url, save_path_without_extension):
                 'quiet': False,
                 'merge_output_format': 'mp4',
                 'postprocessors': [{'key': 'FFmpegVideoConvertor', 'preferedformat': 'mp4'}],
+                'cookiefile': './youtube_cookies.txt',
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info_dict = ydl.extract_info(video_url, download=True)
@@ -282,6 +283,7 @@ def convert_file_route():
         start = data.get('start')
         end = data.get('end')
         text = data.get('text')
+        logger.info(f"Received text for overlay: '{text}'")
         font_size = data.get('font_size', 20)
         text_position = data.get('text_position', 'center')
         text_color = data.get('text_color', 'white')
@@ -408,6 +410,10 @@ def handle_contact_form():
 @app.route('/')
 def home():
     return jsonify({'message': 'MP4 to GIF Converter API is running!'}), 200
+
+@app.route('/health')
+def health_check():
+    return 'OK', 200
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8080))

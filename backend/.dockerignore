@@ -1,0 +1,18 @@
+# Ignore local development files
+.git
+.gitignore
+.env
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.vscode/
+
+# Ignore temporary files or large outputs that shouldn't be in the image
+*.mp4
+*.gif
+*.log
+temp_*
+outputs/

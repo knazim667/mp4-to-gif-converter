@@ -776,7 +776,11 @@ function Upload() {
   };
 
 
-  const fontStyleOptions = ["Arial", "Times New Roman", "Courier New", "Verdana", "Georgia", "Comic Sans MS"];
+const fontStyleOptions = [
+    "Arial", // Confirmed working
+    "Verdana", // Provided by ttf-mscorefonts-installer
+    "Georgia", // Provided by ttf-mscorefonts-installer
+  ];
 
   const handlePresetChange = (e) => {
     const presetName = e.target.value;

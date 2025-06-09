@@ -8,7 +8,7 @@ import logging
 # Configure logging
 logger = logging.getLogger(__name__)
 from typing import Optional, Dict, Union, Tuple
-from moviepy.video.VideoClip import ColorClip  # Ensure ColorClip is globally available
+from moviepy import ColorClip  # Ensure ColorClip is globally available
 
 def process_video_output(
     input_path: str,
@@ -29,6 +29,7 @@ def process_video_output(
     include_audio: bool = False,
     crop_params: Optional[Dict[str, int]] = None
 ) -> str:
+    logger.info(f"process_video_output called with text: '{text}'")
     """
     Process a video file to GIF or MP4 with optional trimming, text overlay, speed, and reverse using MoviePy 2.x.
     The output format is determined by the extension of output_path.
@@ -140,6 +141,7 @@ def process_video_output(
 
             # Add text overlay if specified
             if text:
+                logger.info(f"Text overlay logic triggered for text: '{text}'")
                 position_map = {
                     'center': 'center', 'top-left': ('left', 'top'), 'top-center': ('center', 'top'),
                     'top-right': ('right', 'top'), 'center-left': ('left', 'center'),
