@@ -109,16 +109,25 @@ def download_file_from_url(video_url, save_path_without_extension):
     is_youtube_like_url = any(site in video_url for site in ["youtube.com/", "youtu.be/", "vimeo.com/", "dailymotion.com/"])
     try:
         if is_youtube_like_url:
+            # Construct absolute path to cookie file relative to app.py
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            cookie_file_abs_path = os.path.join(base_dir, 'youtube_cookies.txt')
+
             logger.info(f"Attempting to download video using yt-dlp from URL: {video_url}")
             ydl_opts = {
                 'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
                 'outtmpl': f'{save_path_without_extension}.%(ext)s',
                 'noplaylist': True,
-                'quiet': False,
+                'quiet': False, # Set to True for less verbose output from yt-dlp in logs if needed
                 'merge_output_format': 'mp4',
                 'postprocessors': [{'key': 'FFmpegVideoConvertor', 'preferedformat': 'mp4'}],
-                'cookiefile': './youtube_cookies.txt',
             }
+            if os.path.exists(cookie_file_abs_path):
+                ydl_opts['cookiefile'] = cookie_file_abs_path
+                logger.info(f"Using cookie file for yt-dlp: {cookie_file_abs_path}")
+            else:
+                logger.warning(f"Cookie file not found at {cookie_file_abs_path}. yt-dlp will proceed without cookies for {video_url}.")
+
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info_dict = ydl.extract_info(video_url, download=True)
                 downloaded_filename = ydl.prepare_filename(info_dict)
@@ -185,7 +194,7 @@ def upload_file_route():
         return jsonify({'status': 'error', 'message': str(se)}), 500
     except Exception as e:
         logger.error(f"Unexpected error during upload: {e}", exc_info=True)
-        return jsonify({'status': 'error', 'message': 'Server error during upload'}), 500
+        return jsonify({'status': 'error', 'message': f'Server error during upload: {str(e)}'}), 500
     finally:
         if temp_local_path and os.path.exists(temp_local_path):
             os.remove(temp_local_path)
@@ -222,7 +231,7 @@ def process_url_route():
         return jsonify({'status': 'error', 'message': str(se)}), 500
     except Exception as e:
         logger.error(f"Unexpected error during URL processing: {e}", exc_info=True)
-        return jsonify({'status': 'error', 'message': 'Server error during URL processing'}), 500
+        return jsonify({'status': 'error', 'message': f'Server error during URL processing: {str(e)}'}), 500
     finally:
         if downloaded_temp_file_path and os.path.exists(downloaded_temp_file_path):
             os.remove(downloaded_temp_file_path)
@@ -264,7 +273,7 @@ def analyze_file_route():
         return jsonify({'status': 'error', 'message': str(ve)}), 400
     except Exception as e:
         logger.error(f"Unexpected error during analysis: {e}", exc_info=True)
-        return jsonify({'status': 'error', 'message': 'Server error during analysis'}), 500
+        return jsonify({'status': 'error', 'message': f'Server error during analysis: {str(e)}'}), 500
     finally:
         if temp_input_filename and os.path.exists(temp_input_filename):
             os.remove(temp_input_filename)
@@ -354,7 +363,7 @@ def convert_file_route():
         return jsonify({'status': 'error', 'message': str(ve)}), 400
     except Exception as e:
         logger.error(f"Unexpected error during conversion: {e}", exc_info=True)
-        return jsonify({'status': 'error', 'message': 'Server error during conversion'}), 500
+        return jsonify({'status': 'error', 'message': f'Server error during conversion: {str(e)}'}), 500
     finally:
         if temp_input_filename and os.path.exists(temp_input_filename):
             os.remove(temp_input_filename)
@@ -404,7 +413,7 @@ def handle_contact_form():
 
     except Exception as e:
         logger.error(f"Error handling contact form: {e}", exc_info=True)
-        return jsonify({"message": "An error occurred while sending the message."}), 500
+        return jsonify({"message": f"An error occurred while sending the message: {str(e)}"}), 500
 
 # Home endpoint for testing
 @app.route('/')
@@ -420,4 +429,3 @@ if __name__ == '__main__':
     # For production, you'd typically use a WSGI server like Gunicorn or Waitress
     # and set debug=False.
     app.run(debug=os.getenv('FLASK_DEBUG', 'False').lower() == 'true', host='0.0.0.0', port=port)
-

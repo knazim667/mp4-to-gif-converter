@@ -32,6 +32,7 @@ RUN sed -i 's/main/main contrib non-free/g' /etc/apt/sources.list.d/debian.sourc
 # Copy your requirements.txt first to leverage Docker's caching
 # This ensures that pip installs don't rerun if only app code changes
 COPY requirements.txt .
+COPY youtube_cookies.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
